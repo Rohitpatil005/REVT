@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { LocalAdapter } from "@/lib/data/local";
 import { Customer, Invoice, InvoiceItem, Org, TaxType, computeTotals, INR } from "@/lib/data/types";
+import InvoicePrint from "@/components/invoice/InvoicePrint";
 
 function useOrg(): Org {
   const [params] = useSearchParams();
@@ -33,6 +34,13 @@ export default function Invoices() {
   ]);
 
   const totals = useMemo(() => computeTotals(items, taxType, taxRate), [items, taxType, taxRate]);
+  const [freight, setFreight] = useState<number>(0);
+  const [meta, setMeta] = useState({ transportMode: "By Road", vehicleNo: "", poNo: "", poDate: "", dateOfSupply: date, lrNo: "", paymentTermDays: 15, dueDate: "" });
+  const grand = useMemo(()=>{
+    const base = totals.total + (freight||0);
+    const round = Math.round(base) - base;
+    return { base, round, final: base + round };
+  },[totals, freight]);
 
   function setItem(idx: number, patch: Partial<InvoiceItem>) {
     setItems((prev) => {
@@ -65,6 +73,8 @@ export default function Invoices() {
       taxType,
       taxRate,
       totals,
+      freight,
+      meta,
     });
     setList((l)=>[inv, ...l]);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -122,6 +132,14 @@ export default function Invoices() {
               <Input placeholder="State" value={customer.state ?? ""} onChange={(e)=>setCustomer({...customer, state: e.target.value})} />
               <Input className="sm:col-span-3" placeholder="Address" value={customer.address ?? ""} onChange={(e)=>setCustomer({...customer, address: e.target.value})} />
             </div>
+            <div className="grid sm:grid-cols-3 gap-2">
+              <Input placeholder="Transport Mode" value={meta.transportMode} onChange={(e)=>setMeta({...meta, transportMode: e.target.value})} />
+              <Input placeholder="Vehicle No." value={meta.vehicleNo} onChange={(e)=>setMeta({...meta, vehicleNo: e.target.value})} />
+              <Input placeholder="L. R. No." value={meta.lrNo} onChange={(e)=>setMeta({...meta, lrNo: e.target.value})} />
+              <Input placeholder="P. O. No." value={meta.poNo} onChange={(e)=>setMeta({...meta, poNo: e.target.value})} />
+              <Input type="date" placeholder="P. O. Date" value={meta.poDate} onChange={(e)=>setMeta({...meta, poDate: e.target.value})} />
+              <Input type="date" placeholder="Date Of Supply" value={meta.dateOfSupply} onChange={(e)=>setMeta({...meta, dateOfSupply: e.target.value})} />
+            </div>
             <div>
               <Button variant="ghost" onClick={quickAddCustomer}>Save to memory</Button>
             </div>
@@ -135,6 +153,8 @@ export default function Invoices() {
                   <tr>
                     <th className="p-2 text-left">Item</th>
                     <th className="p-2">HSN/SAC</th>
+                    <th className="p-2">Packages</th>
+                    <th className="p-2">Unit</th>
                     <th className="p-2">Qty</th>
                     <th className="p-2">Rate</th>
                     <th className="p-2">Amount</th>
@@ -146,6 +166,8 @@ export default function Invoices() {
                     <tr key={it.id} className="border-t">
                       <td className="p-2"><Input value={it.productName} onChange={(e)=>setItem(idx,{productName:e.target.value})}/></td>
                       <td className="p-2"><Input value={it.hsn ?? ""} onChange={(e)=>setItem(idx,{hsn:e.target.value})}/></td>
+                      <td className="p-2 w-24"><Input type="number" value={it.packages ?? 0} onChange={(e)=>setItem(idx,{packages:parseFloat(e.target.value||"0")})}/></td>
+                      <td className="p-2 w-28"><Input value={it.unit ?? ""} onChange={(e)=>setItem(idx,{unit:e.target.value})}/></td>
                       <td className="p-2 w-24"><Input type="number" value={it.qty} onChange={(e)=>setItem(idx,{qty:parseFloat(e.target.value||"0")})}/></td>
                       <td className="p-2 w-32"><Input type="number" value={it.rate} onChange={(e)=>setItem(idx,{rate:parseFloat(e.target.value||"0")})}/></td>
                       <td className="p-2 text-right">{INR(it.qty*it.rate)}</td>
@@ -174,13 +196,31 @@ export default function Invoices() {
                 {taxType==="inter" && (
                   <div className="flex justify-between"><span>IGST ({taxRate}%)</span><span>{INR(totals.igst)}</span></div>
                 )}
-                <div className="flex justify-between font-semibold"><span>Total</span><span>{INR(totals.total)}</span></div>
+                <div className="flex justify-between"><span>Freight</span><span>{INR(freight||0)}</span></div>
+                <div className="flex justify-between"><span>Round Off</span><span>{grand.round.toFixed(2)}</span></div>
+                <div className="flex justify-between font-semibold"><span>Total</span><span>{INR(grand.final)}</span></div>
               </CardContent>
             </Card>
             <div className="grid gap-2 content-start">
+              <div className="grid gap-1">
+                <label className="text-sm">Freight</label>
+                <Input type="number" value={freight} onChange={(e)=>setFreight(parseFloat(e.target.value||"0"))} />
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm">Payment Term (days)</label>
+                <Input type="number" value={meta.paymentTermDays} onChange={(e)=>setMeta({...meta, paymentTermDays: parseInt(e.target.value||"0")})} />
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm">Due Date</label>
+                <Input type="date" value={meta.dueDate} onChange={(e)=>setMeta({...meta, dueDate: e.target.value})} />
+              </div>
               <Button onClick={saveInvoice}>Save invoice</Button>
               <Button variant="outline" onClick={()=>window.print()}>Print / Save PDF</Button>
             </div>
+          </div>
+
+          <div className="print-only">
+            <InvoicePrint invoice={{ id: "preview", org, number: "PREVIEW", date, customer: { name: customer.name||"", address: customer.address, gstin: customer.gstin, state: customer.state }, items, taxType, taxRate, totals, freight, meta, createdAt: Date.now() } as unknown as Invoice} />
           </div>
         </CardContent>
       </Card>
