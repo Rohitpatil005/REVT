@@ -15,6 +15,7 @@ export interface Product {
   org: Org;
   name: string;
   hsn?: string;
+  unit?: string; // e.g. Sq. Mtr, Roll, BDL
   rate: number; // per unit
   createdAt: number;
 }
@@ -76,6 +77,9 @@ export interface NumberingSettings {
 export interface DataAdapter {
   listCustomers(org: Org): Promise<Customer[]>;
   saveCustomer(c: Omit<Customer, "id" | "createdAt"> & Partial<Pick<Customer, "id">>): Promise<Customer>;
+
+  listProducts(org: Org): Promise<Product[]>;
+  saveProduct(p: Omit<Product, "id" | "createdAt"> & Partial<Pick<Product, "id">>): Promise<Product>;
 
   listInvoices(org: Org): Promise<Invoice[]>;
   saveInvoice(i: Omit<Invoice, "id" | "createdAt" | "number" | "totals"> & Partial<Pick<Invoice, "id" | "number" | "totals" >>): Promise<Invoice>;
