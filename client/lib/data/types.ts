@@ -25,8 +25,10 @@ export interface InvoiceItem {
   id: string;
   productName: string;
   hsn?: string;
-  qty: number;
-  rate: number;
+  packages?: number; // No. of packages
+  unit?: string; // e.g. Sq. Mtr, Roll, BDL
+  qty: number; // total quantity
+  rate: number; // rate per unit
 }
 
 export interface InvoiceTotals {
@@ -35,6 +37,17 @@ export interface InvoiceTotals {
   sgst: number;
   igst: number;
   total: number;
+}
+
+export interface InvoiceMeta {
+  transportMode?: string;
+  vehicleNo?: string;
+  poNo?: string;
+  poDate?: string;
+  dateOfSupply?: string;
+  lrNo?: string;
+  paymentTermDays?: number;
+  dueDate?: string;
 }
 
 export interface Invoice {
@@ -47,6 +60,8 @@ export interface Invoice {
   taxType: TaxType;
   taxRate: number; // e.g. 18 for 18%
   totals: InvoiceTotals;
+  freight?: number;
+  meta?: InvoiceMeta;
   createdAt: number;
 }
 
