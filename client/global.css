@@ -107,3 +107,16 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .print-a4 { width: 190mm; margin: 0 auto; }
+  .print-only { display: none; }
+  .screen-only { display: block; }
+}
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+  .print-only { display: block !important; }
+  .screen-only { display: none !important; }
+  body { background: white !important; }
+}
