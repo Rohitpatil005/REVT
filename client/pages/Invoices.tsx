@@ -238,7 +238,7 @@ export default function Invoices() {
                 <div className="font-medium">{inv.number}</div>
                 <div className="text-muted-foreground">{new Date(inv.date).toLocaleDateString()} · {inv.customer.name}</div>
               </div>
-              <div className="text-sm font-medium">{INR(inv.totals.total)}</div>
+              <div className="text-sm font-medium">{INR(inv.totals.total + (inv.freight||0))}</div>
             </div>
           ))}
         </CardContent>
