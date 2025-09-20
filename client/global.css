@@ -109,7 +109,7 @@
 }
 
 @layer components {
-  .print-a4 { width: 190mm; margin: 0 auto; }
+  .print-a4 { width: 190mm; margin: 0 auto; font-family: Calibri, "Segoe UI", Arial, sans-serif; }
   .print-only { display: none; }
   .screen-only { display: block; }
 }
