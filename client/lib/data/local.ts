@@ -74,7 +74,7 @@ export const LocalAdapter: DataAdapter = {
 
     const totals = i.totals ?? computeTotals(i.items, i.taxType, i.taxRate);
     const id = i.id ?? crypto.randomUUID();
-    const inv: Invoice = { id, number: num!, totals, createdAt: now(), ...i } as Invoice;
+    const inv: Invoice = { id, number: num!, totals, createdAt: now(), freight: i.freight ?? 0, meta: i.meta, ...i } as Invoice;
 
     const idx = all.findIndex((x)=>x.id===id);
     if (idx>=0) all[idx]=inv; else all.unshift(inv);
