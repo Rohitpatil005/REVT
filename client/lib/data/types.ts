@@ -76,19 +76,30 @@ export interface NumberingSettings {
 
 export interface DataAdapter {
   listCustomers(org: Org): Promise<Customer[]>;
-  saveCustomer(c: Omit<Customer, "id" | "createdAt"> & Partial<Pick<Customer, "id">>): Promise<Customer>;
+  saveCustomer(
+    c: Omit<Customer, "id" | "createdAt"> & Partial<Pick<Customer, "id">>,
+  ): Promise<Customer>;
 
   listProducts(org: Org): Promise<Product[]>;
-  saveProduct(p: Omit<Product, "id" | "createdAt"> & Partial<Pick<Product, "id">>): Promise<Product>;
+  saveProduct(
+    p: Omit<Product, "id" | "createdAt"> & Partial<Pick<Product, "id">>,
+  ): Promise<Product>;
 
   listInvoices(org: Org): Promise<Invoice[]>;
-  saveInvoice(i: Omit<Invoice, "id" | "createdAt" | "number" | "totals"> & Partial<Pick<Invoice, "id" | "number" | "totals" >>): Promise<Invoice>;
+  saveInvoice(
+    i: Omit<Invoice, "id" | "createdAt" | "number" | "totals"> &
+      Partial<Pick<Invoice, "id" | "number" | "totals">>,
+  ): Promise<Invoice>;
 
   getNumbering(org: Org): Promise<NumberingSettings>;
   incrementNumber(org: Org): Promise<NumberingSettings>;
 }
 
-export function computeTotals(items: InvoiceItem[], taxType: TaxType, taxRate: number): InvoiceTotals {
+export function computeTotals(
+  items: InvoiceItem[],
+  taxType: TaxType,
+  taxRate: number,
+): InvoiceTotals {
   const subtotal = items.reduce((s, it) => s + it.qty * it.rate, 0);
   const tax = (subtotal * taxRate) / 100;
   const half = tax / 2;
@@ -99,4 +110,7 @@ export function computeTotals(items: InvoiceItem[], taxType: TaxType, taxRate: n
   return { subtotal, cgst, sgst, igst, total };
 }
 
-export const INR = (n: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(n);
+export const INR = (n: number) =>
+  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(
+    n,
+  );
