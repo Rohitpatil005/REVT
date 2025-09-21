@@ -109,7 +109,7 @@
 }
 
 @layer components {
-  .print-a4 { width: 190mm; margin: 0 auto; font-family: Calibri, "Segoe UI", Arial, sans-serif; }
+  .print-a4 { width: 190mm; margin: 0 auto; font-family: Calibri, "Segoe UI", Arial, sans-serif; font-size: 14px; }
   .print-only { display: none; }
   .screen-only { display: block; }
 }
@@ -119,4 +119,7 @@
   .print-only { display: block !important; }
   .screen-only { display: none !important; }
   body { background: white !important; }
+  /* Enforce bold borders for invoice tables */
+  .inv-tbl { border-collapse: collapse; }
+  .inv-tbl, .inv-tbl thead, .inv-tbl tbody, .inv-tbl tr, .inv-tbl th, .inv-tbl td { border: 1px solid #000 !important; }
 }

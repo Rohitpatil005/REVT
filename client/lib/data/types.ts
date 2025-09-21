@@ -27,8 +27,10 @@ export interface InvoiceItem {
   productName: string;
   hsn?: string;
   packages?: number; // No. of packages
-  unit?: string; // e.g. Sq. Mtr, Roll, BDL
-  qty: number; // total quantity
+  packageType?: string; // e.g. Roll, BDL, Nos
+  unit?: string; // e.g. Sq. Mtr
+  quantityPer?: number; // quantity per package
+  qty: number; // total quantity (packages * quantityPer)
   rate: number; // rate per unit
 }
 
@@ -47,8 +49,8 @@ export interface InvoiceMeta {
   poDate?: string;
   dateOfSupply?: string;
   lrNo?: string;
-  paymentTermDays?: number;
-  dueDate?: string;
+  paymentTerm?: string; // e.g. "15", "advance", "immediate"
+  dueDate?: string; // ISO YYYY-MM-DD
 }
 
 export interface Invoice {
@@ -57,6 +59,7 @@ export interface Invoice {
   number: string; // e.g. RE-2025-001
   date: string; // ISO
   customer: Pick<Customer, "name" | "address" | "gstin" | "state">;
+  shipping?: Pick<Customer, "name" | "address" | "gstin" | "state">;
   items: InvoiceItem[];
   taxType: TaxType;
   taxRate: number; // e.g. 18 for 18%
@@ -99,14 +102,16 @@ export function computeTotals(
   items: InvoiceItem[],
   taxType: TaxType,
   taxRate: number,
+  freight: number = 0,
 ): InvoiceTotals {
   const subtotal = items.reduce((s, it) => s + it.qty * it.rate, 0);
-  const tax = (subtotal * taxRate) / 100;
+  const taxable = subtotal + (freight || 0);
+  const tax = (taxable * taxRate) / 100;
   const half = tax / 2;
   const cgst = taxType === "intra" ? half : 0;
   const sgst = taxType === "intra" ? half : 0;
   const igst = taxType === "inter" ? tax : 0;
-  const total = subtotal + cgst + sgst + igst;
+  const total = taxable + cgst + sgst + igst;
   return { subtotal, cgst, sgst, igst, total };
 }
 
