@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { LocalAdapter } from "@/lib/data/local";
-import { Customer, Invoice, InvoiceItem, Org, TaxType, computeTotals, INR } from "@/lib/data/types";
+import { Customer, Invoice, InvoiceItem, Org, Product, TaxType, computeTotals, INR } from "@/lib/data/types";
+import { Orgs } from "@/lib/orgs";
 import InvoicePrint from "@/components/invoice/InvoicePrint";
 
 function useOrg(): Org {
@@ -18,10 +19,19 @@ export default function Invoices() {
   const nav = useNavigate();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [list, setList] = useState<Invoice[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [invoiceNumber, setInvoiceNumber] = useState<string>("");
 
   useEffect(() => {
     LocalAdapter.listCustomers(org).then(setCustomers);
     LocalAdapter.listInvoices(org).then(setList);
+    LocalAdapter.listProducts(org).then(setProducts);
+    LocalAdapter.getNumbering(org).then((n)=>{
+      const yy1 = String(n.year % 100).padStart(2, "0");
+      const yy2 = String((n.year + 1) % 100).padStart(2, "0");
+      const suggested = `${n.series}/${yy1}-${yy2}/${String(n.next).padStart(n.pad, "0")}`;
+      setInvoiceNumber(suggested);
+    });
   }, [org]);
 
   // form state
@@ -29,18 +39,59 @@ export default function Invoices() {
   const [taxType, setTaxType] = useState<TaxType>("intra");
   const [taxRate, setTaxRate] = useState(18);
   const [customer, setCustomer] = useState<Partial<Customer>>({ org, name: "" });
+  const [shipTo, setShipTo] = useState<Partial<Customer>>({ org, name: "" });
+  const [shipCode, setShipCode] = useState<string>("");
   const [items, setItems] = useState<InvoiceItem[]>([
-    { id: crypto.randomUUID(), productName: "", qty: 1, rate: 0 },
+    { id: crypto.randomUUID(), productName: "", packages: 1, quantityPer: 1, qty: 1, rate: 0 },
   ]);
 
-  const totals = useMemo(() => computeTotals(items, taxType, taxRate), [items, taxType, taxRate]);
   const [freight, setFreight] = useState<number>(0);
-  const [meta, setMeta] = useState({ transportMode: "By Road", vehicleNo: "", poNo: "", poDate: "", dateOfSupply: date, lrNo: "", paymentTermDays: 15, dueDate: "" });
+  const totals = useMemo(() => computeTotals(items, taxType, taxRate, freight || 0), [items, taxType, taxRate, freight]);
+  const [meta, setMeta] = useState({ transportMode: "By Road", vehicleNo: "", poNo: "", poDate: "", dateOfSupply: date, lrNo: "", paymentTerm: "15", dueDate: "" });
+  const [editing, setEditing] = useState<Invoice | null>(null);
+  const shipAddressMemory = useMemo(()=>{
+    const set = new Set<string>();
+    customers.forEach(c => { if (c.address) set.add(c.address); });
+    list.forEach(inv => {
+      if (inv.customer?.address) set.add(inv.customer.address);
+      if (inv.shipping?.address) set.add(inv.shipping.address);
+    });
+    return Array.from(set);
+  }, [customers, list]);
   const grand = useMemo(()=>{
-    const base = totals.total + (freight||0);
+    const base = totals.total;
     const round = Math.round(base) - base;
     return { base, round, final: base + round };
-  },[totals, freight]);
+  },[totals]);
+
+  useEffect(()=>{
+    function addDaysISO(iso: string, days: number) {
+      const d = new Date(iso + "T00:00:00");
+      d.setDate(d.getDate() + days);
+      return d.toISOString().slice(0,10);
+    }
+    const raw = (meta.paymentTerm ?? "").trim().toLowerCase();
+    const isNumeric = /^\d+$/.test(raw);
+    let nextDue = date;
+    if (isNumeric) {
+      nextDue = addDaysISO(date, parseInt(raw, 10));
+    } else if (raw === "advance" || raw === "immediate" || raw === "immediately") {
+      nextDue = date;
+    }
+    if (meta.dueDate !== nextDue) setMeta({...meta, dueDate: nextDue});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, meta.paymentTerm]);
+
+  useEffect(()=>{
+    const my = Orgs[org]?.gstin?.match(/^(\d{2})/);
+    const their = (customer.gstin || "").match(/^(\d{2})/);
+    if (my && their) {
+      const next: TaxType = my[1] === their[1] ? "intra" : "inter";
+      if (next !== taxType) setTaxType(next);
+    }
+    // only respond to org or customer's gst changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [org, customer.gstin]);
 
   function setItem(idx: number, patch: Partial<InvoiceItem>) {
     setItems((prev) => {
@@ -51,7 +102,7 @@ export default function Invoices() {
   }
 
   function addRow() {
-    setItems((p)=>[...p, { id: crypto.randomUUID(), productName: "", qty: 1, rate: 0 }]);
+    setItems((p)=>[...p, { id: crypto.randomUUID(), productName: "", packages: 1, quantityPer: 1, qty: 1, rate: 0 }]);
   }
   function removeRow(id: string) {
     setItems((p)=>p.filter(x=>x.id!==id));
@@ -61,14 +112,28 @@ export default function Invoices() {
     const c = customers.find((x)=>x.id===id);
     if (c) setCustomer({ name: c.name, address: c.address, gstin: c.gstin, state: c.state, org });
   }
+  function autofillCustomerByName(name: string) {
+    const c = customers.find((x)=>x.name === name);
+    if (c) {
+      setCustomer({ org, name: c.name, address: c.address, gstin: c.gstin, state: c.state });
+      return true;
+    }
+    return false;
+  }
 
   async function saveInvoice() {
     if (!customer?.name || items.length===0) return;
+    const shipStateCombined = shipCode ? `${shipTo.state ?? ""} - ${shipCode}` : (shipTo.state ?? "");
+    const shipping = (shipTo.name || shipTo.address || shipTo.gstin || shipTo.state || shipCode)
+      ? { name: shipTo.name || "", address: shipTo.address, gstin: shipTo.gstin, state: shipStateCombined }
+      : undefined;
     const inv = await LocalAdapter.saveInvoice({
       org,
-      number: undefined,
+      id: editing?.id,
+      number: invoiceNumber?.trim() ? invoiceNumber.trim() : undefined,
       date,
       customer: { name: customer.name!, address: customer.address, gstin: customer.gstin, state: customer.state },
+      shipping,
       items,
       taxType,
       taxRate,
@@ -76,7 +141,18 @@ export default function Invoices() {
       freight,
       meta,
     });
-    setList((l)=>[inv, ...l]);
+    setList((l)=>{
+      const idx = l.findIndex(x=>x.id===inv.id);
+      if (idx>=0) { const copy=[...l]; copy[idx]=inv; return copy.sort((a,b)=>b.createdAt-a.createdAt); }
+      return [inv, ...l];
+    });
+    setEditing(null);
+    LocalAdapter.getNumbering(org).then((n)=>{
+      const yy1 = String(n.year % 100).padStart(2, "0");
+      const yy2 = String((n.year + 1) % 100).padStart(2, "0");
+      const suggested = `${n.series}/${yy1}-${yy2}/${String(n.next).padStart(n.pad, "0")}`;
+      setInvoiceNumber(suggested);
+    });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -86,8 +162,24 @@ export default function Invoices() {
     setCustomers((c)=>[created, ...c]);
   }
 
+  function loadForEdit(inv: Invoice) {
+    setEditing(inv);
+    setInvoiceNumber(inv.number || "");
+    setDate(inv.date);
+    setTaxType(inv.taxType);
+    setTaxRate(inv.taxRate);
+    setCustomer({ org: inv.org, name: inv.customer.name, address: inv.customer.address, gstin: inv.customer.gstin, state: inv.customer.state });
+    const m = inv.shipping?.state?.match(/^(.*?)(?:\s*-\s*(\d{1,2}))?$/);
+    setShipTo({ org: inv.org, name: inv.shipping?.name || "", address: inv.shipping?.address || "", gstin: inv.shipping?.gstin || "", state: m?.[1] ? m![1].trim() : (inv.shipping?.state || "") });
+    setShipCode(m?.[2] || "");
+    setItems(inv.items.map(x=>({ ...x, quantityPer: x.quantityPer ?? ((x.packages ?? 0) ? x.qty / (x.packages ?? 1) : undefined) })));
+    setFreight(inv.freight ?? 0);
+    setMeta({ ...inv.meta, paymentTerm: inv?.meta?.paymentTerm ?? "", dueDate: inv?.meta?.dueDate ?? "", transportMode: inv?.meta?.transportMode ?? "", vehicleNo: inv?.meta?.vehicleNo ?? "", poNo: inv?.meta?.poNo ?? "", poDate: inv?.meta?.poDate ?? "", dateOfSupply: inv?.meta?.dateOfSupply ?? inv.date, lrNo: inv?.meta?.lrNo ?? "" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid gap-6">
       <Card>
         <CardHeader>
           <CardTitle>Create invoice</CardTitle>
@@ -119,13 +211,27 @@ export default function Invoices() {
             </div>
           </div>
 
+          <div className="grid sm:grid-cols-3 gap-3">
+            <div className="grid gap-1">
+              <label className="text-sm">Invoice No.</label>
+              <Input value={invoiceNumber} onChange={(e)=>setInvoiceNumber(e.target.value)} />
+              <div className="text-xs text-muted-foreground">Auto-suggested; editable.</div>
+            </div>
+          </div>
+
           <div className="grid gap-2">
             <label className="text-sm">Customer</label>
             <div className="grid sm:grid-cols-3 gap-2">
-              <Input list="custs" placeholder="Select or type" value={customer.name ?? ""} onChange={(e)=>setCustomer({...customer, name: e.target.value})} />
+              <Input list="custs" placeholder="Select or type" value={customer.name ?? ""} onChange={(e)=>{
+                const v = e.target.value;
+                if (!autofillCustomerByName(v)) setCustomer({ ...customer, name: v });
+              }} onBlur={(e)=>{
+                const v = e.target.value;
+                if (!autofillCustomerByName(v)) setCustomer({ ...customer, name: v });
+              }} />
               <datalist id="custs">
-                {customers.map((c)=> (
-                  <option key={c.id} value={c.name} />
+                {customers.map((c, i)=> (
+                  <option key={`${c.id}-${c.createdAt}-${i}`} value={c.name} />
                 ))}
               </datalist>
               <Input placeholder="GSTIN" value={customer.gstin ?? ""} onChange={(e)=>setCustomer({...customer, gstin: e.target.value})} />
@@ -146,37 +252,85 @@ export default function Invoices() {
           </div>
 
           <div className="grid gap-2">
+            <label className="text-sm">Ship to</label>
+            <div className="grid sm:grid-cols-3 gap-2">
+              <Input placeholder="Name" list="custs" value={shipTo.name ?? ""} onChange={(e)=>setShipTo({ ...shipTo, name: e.target.value })} />
+              <Input placeholder="GSTIN" value={shipTo.gstin ?? ""} onChange={(e)=>setShipTo({ ...shipTo, gstin: e.target.value })} />
+              <div className="grid grid-cols-2 gap-2">
+                <Input placeholder="State" value={shipTo.state ?? ""} onChange={(e)=>setShipTo({ ...shipTo, state: e.target.value })} />
+                <Input placeholder="Code" value={shipCode} onChange={(e)=>setShipCode(e.target.value)} />
+              </div>
+              <Input className="sm:col-span-3" placeholder="Address" list="shipAddrs" value={shipTo.address ?? ""} onChange={(e)=>setShipTo({ ...shipTo, address: e.target.value })} />
+              <datalist id="shipAddrs">
+                {shipAddressMemory.map((a, i)=> (
+                  <option key={`${i}-${a}`} value={a} />
+                ))}
+              </datalist>
+            </div>
+          </div>
+
+          <div className="grid gap-2">
             <label className="text-sm">Items</label>
             <div className="overflow-x-auto rounded-md border">
-              <table className="w-full text-sm">
+              <table className="w-full text-base">
                 <thead className="bg-secondary">
                   <tr>
-                    <th className="p-2 text-left">Item</th>
-                    <th className="p-2">HSN/SAC</th>
-                    <th className="p-2">Packages</th>
-                    <th className="p-2">Unit</th>
-                    <th className="p-2">Qty</th>
-                    <th className="p-2">Rate</th>
-                    <th className="p-2">Amount</th>
-                    <th className="p-2"></th>
+                    <th className="p-3 text-left">Item</th>
+                    <th className="p-3">HSN/SAC</th>
+                    <th className="p-3">Packages</th>
+                    <th className="p-3">Unit</th>
+                    <th className="p-3">Quantity Per</th>
+                    <th className="p-3">Total Qty</th>
+                    <th className="p-3">Rate</th>
+                    <th className="p-3">Amount</th>
+                    <th className="p-3"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((it, idx)=> (
                     <tr key={it.id} className="border-t">
-                      <td className="p-2"><Input value={it.productName} onChange={(e)=>setItem(idx,{productName:e.target.value})}/></td>
-                      <td className="p-2"><Input value={it.hsn ?? ""} onChange={(e)=>setItem(idx,{hsn:e.target.value})}/></td>
-                      <td className="p-2 w-24"><Input type="number" value={it.packages ?? 0} onChange={(e)=>setItem(idx,{packages:parseFloat(e.target.value||"0")})}/></td>
-                      <td className="p-2 w-28"><Input value={it.unit ?? ""} onChange={(e)=>setItem(idx,{unit:e.target.value})}/></td>
-                      <td className="p-2 w-24"><Input type="number" value={it.qty} onChange={(e)=>setItem(idx,{qty:parseFloat(e.target.value||"0")})}/></td>
-                      <td className="p-2 w-32"><Input type="number" value={it.rate} onChange={(e)=>setItem(idx,{rate:parseFloat(e.target.value||"0")})}/></td>
-                      <td className="p-2 text-right">{INR(it.qty*it.rate)}</td>
-                      <td className="p-2 text-right"><Button variant="ghost" onClick={()=>removeRow(it.id)}>Remove</Button></td>
+                      <td className="p-3 min-w-[340px]">
+                        <Input className="h-12 text-base" list="prods" value={it.productName} onChange={(e)=>{
+                          const name = e.target.value;
+                          const p = products.find((x)=>x.name===name);
+                          if (p) {
+                            const pkgs = items[idx]?.packages ?? 0;
+                            const per = items[idx]?.quantityPer ?? 1;
+                            setItem(idx,{productName:p.name, hsn:p.hsn, unit:p.unit, rate:p.rate, qty: pkgs * per});
+                          } else setItem(idx,{productName:name});
+                        }}/>
+                      </td>
+                      <td className="p-3"><Input className="h-12 text-base" value={it.hsn ?? ""} onChange={(e)=>setItem(idx,{hsn:e.target.value})}/></td>
+                      <td className="p-3 w-40">
+                        <div className="grid gap-1">
+                          <Input className="h-12 text-base" type="number" value={it.packages ?? 0} onChange={(e)=>{
+                            const pkgs = parseFloat(e.target.value||"0");
+                            const per = it.quantityPer ?? 0;
+                            setItem(idx,{packages: pkgs, qty: pkgs * per});
+                          }} />
+                          <Input className="h-10 text-sm" placeholder="Type (e.g., Roll)" value={it.packageType ?? ""} onChange={(e)=>setItem(idx,{packageType:e.target.value})} />
+                        </div>
+                      </td>
+                      <td className="p-3 w-56"><Input className="h-12 text-base" value={it.unit ?? ""} onChange={(e)=>setItem(idx,{unit:e.target.value})}/></td>
+                      <td className="p-3 w-56"><Input className="h-12 text-base" type="number" value={it.quantityPer ?? 0} onChange={(e)=>{
+                        const per = parseFloat(e.target.value||"0");
+                        const pkgs = it.packages ?? 0;
+                        setItem(idx,{quantityPer: per, qty: per * pkgs});
+                      }}/></td>
+                      <td className="p-3 w-56"><Input className="h-12 text-base" type="number" value={it.qty} disabled /></td>
+                      <td className="p-3 w-56"><Input className="h-12 text-base" type="number" value={it.rate} onChange={(e)=>setItem(idx,{rate:parseFloat(e.target.value||"0")})}/></td>
+                      <td className="p-3 text-right">{INR(it.qty*it.rate)}</td>
+                      <td className="p-3 text-right"><Button variant="ghost" onClick={()=>removeRow(it.id)}>Remove</Button></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            <datalist id="prods">
+              {products.map((p, i)=> (
+                <option key={`${p.id}-${p.createdAt}-${i}`} value={p.name} />
+              ))}
+            </datalist>
             <div className="flex justify-between">
               <Button variant="secondary" onClick={addRow}>Add item</Button>
               <div className="text-sm text-muted-foreground">Subtotal: {INR(totals.subtotal)}</div>
@@ -207,40 +361,46 @@ export default function Invoices() {
                 <Input type="number" value={freight} onChange={(e)=>setFreight(parseFloat(e.target.value||"0"))} />
               </div>
               <div className="grid gap-1">
-                <label className="text-sm">Payment Term (days)</label>
-                <Input type="number" value={meta.paymentTermDays} onChange={(e)=>setMeta({...meta, paymentTermDays: parseInt(e.target.value||"0")})} />
+                <label className="text-sm">Payment Term</label>
+                <Input placeholder="e.g. 15, advance, immediate" value={meta.paymentTerm ?? ""} onChange={(e)=>setMeta({...meta, paymentTerm: e.target.value})} />
               </div>
               <div className="grid gap-1">
                 <label className="text-sm">Due Date</label>
-                <Input type="date" value={meta.dueDate} onChange={(e)=>setMeta({...meta, dueDate: e.target.value})} />
+                <Input type="date" value={meta.dueDate} disabled />
               </div>
-              <Button onClick={saveInvoice}>Save invoice</Button>
+              <Button onClick={saveInvoice}>{editing ? "Update invoice" : "Save invoice"}</Button>
+              {editing && <Button variant="ghost" onClick={()=>setEditing(null)}>Cancel edit</Button>}
               <Button variant="outline" onClick={()=>window.print()}>Print / Save PDF</Button>
             </div>
           </div>
 
           <div className="print-only">
-            <InvoicePrint invoice={{ id: "preview", org, number: "PREVIEW", date, customer: { name: customer.name||"", address: customer.address, gstin: customer.gstin, state: customer.state }, items, taxType, taxRate, totals, freight, meta, createdAt: Date.now() } as unknown as Invoice} />
+            <InvoicePrint invoice={{ id: "preview", org, number: invoiceNumber?.trim() || "PREVIEW", date, customer: { name: customer.name||"", address: customer.address, gstin: customer.gstin, state: customer.state }, shipping: (shipTo.name || shipTo.address || shipTo.gstin || shipTo.state || shipCode) ? { name: shipTo.name || customer.name || "", address: shipTo.address ?? customer.address, gstin: shipTo.gstin ?? customer.gstin, state: (shipCode ? `${shipTo.state ?? ""} - ${shipCode}` : (shipTo.state ?? customer.state)) } : undefined, items, taxType, taxRate, totals, freight, meta, createdAt: Date.now() } as unknown as Invoice} />
           </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Saved invoices</CardTitle>
-          <CardDescription>Latest first</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {list.length===0 && <div className="text-sm text-muted-foreground">No invoices yet.</div>}
-          {list.map((inv)=> (
-            <div key={inv.id} className="rounded-md border p-3 flex items-center justify-between">
-              <div className="text-sm">
-                <div className="font-medium">{inv.number}</div>
-                <div className="text-muted-foreground">{new Date(inv.date).toLocaleDateString()} · {inv.customer.name}</div>
-              </div>
-              <div className="text-sm font-medium">{INR(inv.totals.total + (inv.freight||0))}</div>
+          <div className="grid gap-2 mt-6">
+            <label className="text-sm">Recent invoices</label>
+            <div className="grid gap-2">
+              {list.slice(0, 10).map((inv)=>{
+                const msg = `Invoice ${inv.number}\nDate: ${new Date(inv.date).toLocaleDateString()}\nTo: ${inv.customer.name}\nTotal: ${INR(inv.totals.total)}\nFrom: ${Orgs[inv.org].name}`;
+                const wa = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+                const mail = `mailto:?subject=${encodeURIComponent(`Invoice ${inv.number} from ${Orgs[inv.org].name}`)}&body=${encodeURIComponent(msg)}`;
+                return (
+                  <div key={inv.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border rounded-md p-2">
+                    <div className="text-sm">
+                      <div className="font-medium">{inv.number}</div>
+                      <div className="text-muted-foreground">{new Date(inv.date).toLocaleDateString()} • {inv.customer.name} • {INR(inv.totals.total)}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="secondary" onClick={()=>loadForEdit(inv)}>Edit</Button>
+                      <Button variant="outline" onClick={()=>window.open(wa, "_blank")}>Send on WhatsApp</Button>
+                      <Button variant="outline" onClick={()=>window.location.href = mail}>Send on Email</Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
+          </div>
         </CardContent>
       </Card>
     </div>

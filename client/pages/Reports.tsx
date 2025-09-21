@@ -63,6 +63,24 @@ export default function Reports() {
           </div>
         </CardContent>
       </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Saved invoices</CardTitle>
+          <CardDescription>Latest first</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {list.length===0 && <div className="text-sm text-muted-foreground">No invoices yet.</div>}
+          {list.map((inv)=> (
+            <div key={inv.id} className="rounded-md border p-3 flex items-center justify-between">
+              <div className="text-sm">
+                <div className="font-medium">{inv.number}</div>
+                <div className="text-muted-foreground">{new Date(inv.date).toLocaleDateString()} · {inv.customer.name}</div>
+              </div>
+              <div className="text-sm font-medium">{INR(inv.totals.total)}</div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }
