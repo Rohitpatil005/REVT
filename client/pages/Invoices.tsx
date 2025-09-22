@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { LocalAdapter } from "@/lib/data/local";
 import { Customer, Invoice, InvoiceItem, Org, Product, TaxType, computeTotals, INR } from "@/lib/data/types";
@@ -34,6 +35,15 @@ export default function Invoices() {
     });
   }, [org]);
 
+  const [sp] = useSearchParams();
+  const editParam = sp.get("edit");
+  useEffect(()=>{
+    if (!editParam) return;
+    const inv = list.find(x=>x.id===editParam);
+    if (inv) loadForEdit(inv);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editParam, list]);
+
   // form state
   const [date, setDate] = useState(()=> new Date().toISOString().slice(0,10));
   const [taxType, setTaxType] = useState<TaxType>("intra");
@@ -47,7 +57,7 @@ export default function Invoices() {
 
   const [freight, setFreight] = useState<number>(0);
   const totals = useMemo(() => computeTotals(items, taxType, taxRate, freight || 0), [items, taxType, taxRate, freight]);
-  const [meta, setMeta] = useState({ transportMode: "By Road", vehicleNo: "", poNo: "", poDate: "", dateOfSupply: date, lrNo: "", paymentTerm: "15", dueDate: "" });
+  const [meta, setMeta] = useState({ transportMode: "By Road", vehicleNo: "", poNo: "", poDate: "", dateOfSupply: date, lrNo: "", paymentTerm: "15", dueDate: "", stamped: false });
   const [editing, setEditing] = useState<Invoice | null>(null);
   const shipAddressMemory = useMemo(()=>{
     const set = new Set<string>();
@@ -180,12 +190,13 @@ export default function Invoices() {
 
   return (
     <div className="grid gap-6">
-      <Card>
-        <CardHeader>
+      <Card className="print:border-0 print:shadow-none print:bg-transparent">
+        <CardHeader className="screen-only">
           <CardTitle>Create invoice</CardTitle>
           <CardDescription>GST-ready totals with {taxType === "intra" ? "CGST/SGST" : "IGST"}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 print:p-0">
+          <div className="screen-only space-y-4">
           <div className="grid sm:grid-cols-3 gap-3">
             <div className="grid gap-1">
               <label className="text-sm">Business</label>
@@ -368,17 +379,25 @@ export default function Invoices() {
                 <label className="text-sm">Due Date</label>
                 <Input type="date" value={meta.dueDate} disabled />
               </div>
+              <div className="grid gap-1">
+                <label className="text-sm flex items-center justify-between">Stamped invoice
+                  <Switch checked={!!meta.stamped} onCheckedChange={(v)=>setMeta({...meta, stamped: !!v})} />
+                </label>
+              </div>
               <Button onClick={saveInvoice}>{editing ? "Update invoice" : "Save invoice"}</Button>
               {editing && <Button variant="ghost" onClick={()=>setEditing(null)}>Cancel edit</Button>}
               <Button variant="outline" onClick={()=>window.print()}>Print / Save PDF</Button>
             </div>
           </div>
 
+          </div>
+
           <div className="print-only">
             <InvoicePrint invoice={{ id: "preview", org, number: invoiceNumber?.trim() || "PREVIEW", date, customer: { name: customer.name||"", address: customer.address, gstin: customer.gstin, state: customer.state }, shipping: (shipTo.name || shipTo.address || shipTo.gstin || shipTo.state || shipCode) ? { name: shipTo.name || customer.name || "", address: shipTo.address ?? customer.address, gstin: shipTo.gstin ?? customer.gstin, state: (shipCode ? `${shipTo.state ?? ""} - ${shipCode}` : (shipTo.state ?? customer.state)) } : undefined, items, taxType, taxRate, totals, freight, meta, createdAt: Date.now() } as unknown as Invoice} />
           </div>
 
-          <div className="grid gap-2 mt-6">
+          <div className="screen-only">
+            <div className="grid gap-2 mt-6">
             <label className="text-sm">Recent invoices</label>
             <div className="grid gap-2">
               {list.slice(0, 10).map((inv)=>{
@@ -400,6 +419,7 @@ export default function Invoices() {
                 );
               })}
             </div>
+          </div>
           </div>
         </CardContent>
       </Card>

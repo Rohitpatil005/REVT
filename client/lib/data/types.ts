@@ -51,6 +51,7 @@ export interface InvoiceMeta {
   lrNo?: string;
   paymentTerm?: string; // e.g. "15", "advance", "immediate"
   dueDate?: string; // ISO YYYY-MM-DD
+  stamped?: boolean; // whether to overlay company stamp on print
 }
 
 export interface Invoice {
