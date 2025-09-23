@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuthContext } from '@/hooks/SupabaseAuthProvider'
-import { uploadInvoicePdf, listInvoices, getPublicUrl, removeFile } from '@/utils/supabaseStorage'
+import { uploadInvoicePdf, listInvoices, getPublicUrl, removeFile } from '../../utils/supabaseStorage'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
