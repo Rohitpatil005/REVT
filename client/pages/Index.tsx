@@ -29,7 +29,7 @@ export default function Index() {
             <div className="text-xs text-muted-foreground">Plan: start with free tiers (Supabase/Netlify/Vercel). Package as a Windows app later with Electron.</div>
           </div>
           <div className="relative">
-            <div className="absolute -inset-8 opacity-30 bg-[radial-gradient(ellipse_at_top,theme(colors.accent/40),transparent_60%)]" />
+            <div className="absolute -inset-8 opacity-30 bg-[radial-gradient(ellipse_at_top,hsl(var(--accent)/0.4),transparent_60%)]" />
             <div className="relative grid gap-4 sm:grid-cols-2">
               <Card>
                 <CardHeader className="pb-2">
