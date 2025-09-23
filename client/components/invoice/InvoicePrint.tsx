@@ -16,17 +16,23 @@ export default function InvoicePrint({ invoice }: { invoice: Invoice }) {
     return s;
   }
 
+  const wantStamp = !!invoice?.meta?.stamped;
+  const stampUrls: Record<Org, string> = {
+    rohit: "https://cdn.builder.io/api/v1/image/assets%2F286324d8989e4ca6baf7420b6841ad90%2Ff65e4168987046ecbd26086f088e2bfe?format=webp&width=800",
+    vighneshwar: "https://cdn.builder.io/api/v1/image/assets%2F286324d8989e4ca6baf7420b6841ad90%2Ffcb987f4399a43aaaab48f21e14bc60a?format=webp&width=800",
+  };
+
   return (
     <div className="print-a4 border border-black p-4 text-[14px] leading-tight text-black">
       <div className="text-center font-semibold">TAX INVOICE</div>
       <div className="text-center text-[32px] font-extrabold tracking-wide text-[#4F81BD]">{profile.name}</div>
       <div className="text-center uppercase text-[12px]">{profile.trade}</div>
-      <div className="mt-1 grid grid-cols-2 gap-2 text-[11px]">
+      <div className="mt-1 flex items-center justify-center gap-6 text-[11px] pb-1 border-b border-black">
         <div>GSTIN NO. - {profile.gstin}</div>
-        <div className="text-right">MSME NO. - {profile.msme}</div>
+        <div>MSME NO. - {profile.msme}</div>
       </div>
       <div className="mt-1 text-center text-[10px] uppercase">{profile.addressLine}</div>
-      <div className="text-center text-[10px]">{profile.contact} , E - MAIL - {profile.email}</div>
+      <div className="text-center text-[10px] pb-1 border-b border-black">{profile.contact} , E - MAIL - {profile.email}</div>
 
       {/* Meta table */}
       <div className="mt-2 grid grid-cols-2 gap-2">
@@ -145,9 +151,16 @@ export default function InvoicePrint({ invoice }: { invoice: Invoice }) {
 
       <div className="mt-6 grid grid-cols-2 gap-2">
         <div className="border border-black p-8 text-center text-[10px]">Receiver's Signature & Stamp</div>
-        <div className="border border-black p-4 text-right text-[10px]">
+        <div className="relative border border-black p-4 text-right text-[10px]">
           <div>We hereby certify that the particulars given above are true & correct.</div>
           <div className="mt-6">For {profile.name.split(" ")[0]} {profile.name.split(" ")[1] ?? ""}</div>
+          {wantStamp && (
+            <img
+              src={stampUrls[org]}
+              alt="Company stamp"
+              className="pointer-events-none select-none absolute right-6 bottom-6 opacity-80 mix-blend-multiply h-20 w-20 object-contain"
+            />
+          )}
           <div className="mt-10">Authorised Signatory</div>
         </div>
       </div>

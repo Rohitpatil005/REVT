@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocalAdapter } from "@/lib/data/local";
 import { Invoice, Org, INR } from "@/lib/data/types";
+import { Orgs } from "@/lib/orgs";
 
 function useOrg(): Org { const [p]=useSearchParams(); return (p.get("org") as Org) || "rohit"; }
 
@@ -49,7 +50,7 @@ export default function Reports() {
               </thead>
               <tbody>
                 {byMonth.length===0 && (
-                  <tr><td className="p-3 text-muted-foreground" colSpan={3}>No data</td></tr>
+                  <tr key="empty-month"><td className="p-3 text-muted-foreground" colSpan={3}>No data</td></tr>
                 )}
                 {byMonth.map(([m, v])=> (
                   <tr key={m} className="border-t">
@@ -70,15 +71,27 @@ export default function Reports() {
         </CardHeader>
         <CardContent className="space-y-2">
           {list.length===0 && <div className="text-sm text-muted-foreground">No invoices yet.</div>}
-          {list.map((inv)=> (
-            <div key={inv.id} className="rounded-md border p-3 flex items-center justify-between">
+          {list.map((inv)=> {
+            const msg = `Invoice ${inv.number}\nDate: ${new Date(inv.date).toLocaleDateString()}\nTo: ${inv.customer.name}\nTotal: ${INR(inv.totals.total)}\nFrom: ${Orgs[inv.org].name}`;
+            const wa = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+            const mail = `mailto:?subject=${encodeURIComponent(`Invoice ${inv.number} from ${Orgs[inv.org].name}`)}&body=${encodeURIComponent(msg)}`;
+            return (
+            <div key={inv.id} className="rounded-md border p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="text-sm">
                 <div className="font-medium">{inv.number}</div>
                 <div className="text-muted-foreground">{new Date(inv.date).toLocaleDateString()} · {inv.customer.name}</div>
               </div>
-              <div className="text-sm font-medium">{INR(inv.totals.total)}</div>
+              <div className="flex items-center gap-2">
+                <div className="text-sm font-medium min-w-24 text-right">{INR(inv.totals.total)}</div>
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={()=>nav(`/invoices?org=${inv.org}&edit=${inv.id}`)}>Edit</Button>
+                  <Button variant="outline" onClick={()=>window.open(wa, "_blank")}>WhatsApp</Button>
+                  <Button variant="outline" onClick={()=>window.location.href = mail}>Email</Button>
+                </div>
+              </div>
             </div>
-          ))}
+            );
+          })}
         </CardContent>
       </Card>
     </div>
