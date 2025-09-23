@@ -23,6 +23,9 @@ import {
 } from "@/lib/data/types";
 import { Orgs } from "@/lib/orgs";
 import InvoicePrint from "@/components/invoice/InvoicePrint";
+import { useAuthContext } from "@/hooks/SupabaseAuthProvider";
+import supabase from "../../utils/supabase";
+import { uploadInvoicePdf, getPublicUrl } from "../../utils/supabaseStorage";
 
 function useOrg(): Org {
   const [params] = useSearchParams();
@@ -33,10 +36,12 @@ function useOrg(): Org {
 export default function Invoices() {
   const org = useOrg();
   const nav = useNavigate();
+  const { user } = useAuthContext();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [list, setList] = useState<Invoice[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [invoiceNumber, setInvoiceNumber] = useState<string>("");
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
 
   useEffect(() => {
     LocalAdapter.listCustomers(org).then(setCustomers);
@@ -231,6 +236,28 @@ export default function Invoices() {
       freight,
       meta,
     });
+
+    // Upload PDF to public bucket and insert DB row (optional)
+    try {
+      if (pdfFile) {
+        await uploadInvoicePdf(org, inv.id, pdfFile);
+        const publicUrl = getPublicUrl(org, inv.id);
+        if (user?.id) {
+          await supabase.from('invoices').insert({
+            org_id: org,
+            user_id: user.id,
+            storage_path: `${org}/invoices/${inv.id}.pdf`,
+            filename: `${inv.number || inv.id}.pdf`,
+            total: inv.totals.total,
+          });
+        }
+        setPdfFile(null);
+      }
+    } catch (e: any) {
+      console.error('Upload/DB insert failed:', e);
+      alert(e?.message || 'Failed to upload PDF or save record.');
+    }
+
     setList((l) => {
       const idx = l.findIndex((x) => x.id === inv.id);
       if (idx >= 0) {
@@ -385,6 +412,11 @@ export default function Invoices() {
                 <div className="text-xs text-muted-foreground">
                   Auto-suggested; editable.
                 </div>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-sm">Invoice PDF</label>
+                <Input type="file" accept="application/pdf" onChange={(e)=>setPdfFile(e.target.files?.[0] ?? null)} />
+                <div className="text-xs text-muted-foreground">Optional: attach the generated PDF to upload to cloud.</div>
               </div>
             </div>
 
