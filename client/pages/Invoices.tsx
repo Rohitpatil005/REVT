@@ -43,7 +43,8 @@ export default function Invoices() {
   const [list, setList] = useState<Invoice[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [invoiceNumber, setInvoiceNumber] = useState<string>("");
-  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const pdfRef = useRef<HTMLDivElement | null>(null);
+  const [pdfTargetInv, setPdfTargetInv] = useState<Invoice | null>(null);
 
   useEffect(() => {
     LocalAdapter.listCustomers(org).then(setCustomers);
