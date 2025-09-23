@@ -267,25 +267,13 @@ export default function Invoices() {
       meta,
     });
 
-    // Upload PDF to public bucket and insert DB row (optional)
-    try {
-      if (pdfFile) {
-        await uploadInvoicePdf(org, inv.id, pdfFile);
-        const publicUrl = getPublicUrl(org, inv.id);
-        if (user?.id) {
-          await supabase.from('invoices').insert({
-            org_id: org,
-            user_id: user.id,
-            storage_path: `${org}/invoices/${inv.id}.pdf`,
-            filename: `${inv.number || inv.id}.pdf`,
-            total: inv.totals.total,
-          });
-        }
-        setPdfFile(null);
+    if (autoUploadPdf) {
+      try {
+        await generateAndUploadPdf(inv);
+      } catch (e: any) {
+        console.error('PDF generation/upload failed', e);
+        alert(e?.message || 'Failed to generate or upload PDF');
       }
-    } catch (e: any) {
-      console.error('Upload/DB insert failed:', e);
-      alert(e?.message || 'Failed to upload PDF or save record.');
     }
 
     setList((l) => {
