@@ -221,7 +221,10 @@ export default function Invoices() {
     if (!node) throw new Error("PDF container not ready");
 
     // Render HTML to canvas at a moderate scale to reduce file size
-    const canvas = await html2canvas(node, { scale: 1.5, backgroundColor: "#ffffff" });
+    const canvas = await html2canvas(node, {
+      scale: 1.5,
+      backgroundColor: "#ffffff",
+    });
 
     const pdf = new jsPDF("p", "pt", "a4");
     const margin = 24; // pts
@@ -320,8 +323,8 @@ export default function Invoices() {
       try {
         await generateAndUploadPdf(inv);
       } catch (e: any) {
-        console.error('PDF generation/upload failed', e);
-        alert(e?.message || 'Failed to generate or upload PDF');
+        console.error("PDF generation/upload failed", e);
+        alert(e?.message || "Failed to generate or upload PDF");
       }
     }
 
@@ -886,8 +889,19 @@ export default function Invoices() {
           </div>
 
           {/* Offscreen render for PDF capture */}
-          <div className="screen-only" style={{ position: "absolute", left: -10000, top: 0, width: 794, background: "#fff" }}>
-            <div ref={pdfRef}>{pdfTargetInv && <InvoicePrint invoice={pdfTargetInv} />}</div>
+          <div
+            className="screen-only"
+            style={{
+              position: "absolute",
+              left: -10000,
+              top: 0,
+              width: 794,
+              background: "#fff",
+            }}
+          >
+            <div ref={pdfRef}>
+              {pdfTargetInv && <InvoicePrint invoice={pdfTargetInv} />}
+            </div>
           </div>
 
           <div className="print-only">
