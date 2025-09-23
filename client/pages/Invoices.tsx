@@ -431,11 +431,6 @@ export default function Invoices() {
                   Auto-suggested; editable.
                 </div>
               </div>
-              <div className="grid gap-1">
-                <label className="text-sm">Invoice PDF</label>
-                <Input type="file" accept="application/pdf" onChange={(e)=>setPdfFile(e.target.files?.[0] ?? null)} />
-                <div className="text-xs text-muted-foreground">Optional: attach the generated PDF to upload to cloud.</div>
-              </div>
             </div>
 
             <div className="grid gap-2">
