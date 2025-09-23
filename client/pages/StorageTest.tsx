@@ -36,11 +36,14 @@ export default function StorageTest() {
     if (!selectedFile) return alert("Select a PDF first");
     setUploading(true);
     try {
-      const invoiceId =
+      const randomId =
         typeof crypto !== "undefined" && (crypto as any).randomUUID
           ? (crypto as any).randomUUID()
           : String(Date.now());
-      await uploadInvoicePdf(org, invoiceId, selectedFile);
+      const fileName = selectedFile.name?.toLowerCase().endsWith(".pdf")
+        ? selectedFile.name
+        : `${randomId}.pdf`;
+      await uploadInvoicePdf(org, fileName, selectedFile);
       await refreshList();
       alert("Uploaded");
     } catch (e: any) {
@@ -52,9 +55,8 @@ export default function StorageTest() {
 
   async function handleRemove(name: string) {
     try {
-      // name is expected to be the file name relative to prefix
-      const invoiceId = name.replace(/\.pdf$/i, "");
-      await removeFile(org, invoiceId);
+      // name is the file name relative to prefix
+      await removeFile(org, name);
       await refreshList();
     } catch (e: any) {
       alert(e.message || "Delete failed");
@@ -96,8 +98,7 @@ export default function StorageTest() {
           {items.map((it: any) => {
             // supabase returns name relative to prefix when listing with prefix
             const name = it.name || it.id || "";
-            const invoiceId = name.replace(/\.pdf$/i, "");
-            const publicUrl = getPublicUrl(org, invoiceId);
+            const publicUrl = getPublicUrl(org, name);
             return (
               <li
                 key={name}
