@@ -25,7 +25,9 @@ import { Orgs } from "@/lib/orgs";
 import InvoicePrint from "@/components/invoice/InvoicePrint";
 import { useAuthContext } from "@/hooks/SupabaseAuthProvider";
 import supabase from "../../utils/supabase";
-import { uploadInvoicePdf, getPublicUrl } from "../../utils/supabaseStorage";
+import { uploadInvoicePdf } from "../../utils/supabaseStorage";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 function useOrg(): Org {
   const [params] = useSearchParams();
