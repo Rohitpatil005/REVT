@@ -206,7 +206,34 @@ export default function Invoices() {
     return false;
   }
 
-  async function saveInvoice() {
+  async function generateAndUploadPdf(inv: Invoice) {
+    setPdfTargetInv(inv);
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    const node = pdfRef.current;
+    if (!node) throw new Error("PDF container not ready");
+    const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#ffffff" });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p", "pt", "a4");
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+    const blob = pdf.output("blob");
+    const file = new File([blob], `${inv.number || inv.id}.pdf`, { type: "application/pdf" });
+    await uploadInvoicePdf(inv.org, inv.id, file);
+    if (user?.id) {
+      await supabase.from("invoices").insert({
+        org_id: inv.org,
+        user_id: user.id,
+        storage_path: `${inv.org}/invoices/${inv.id}.pdf`,
+        filename: `${inv.number || inv.id}.pdf`,
+        total: inv.totals.total,
+      });
+    }
+    setPdfTargetInv(null);
+  }
+
+  async function saveInvoice(autoUploadPdf: boolean = false) {
     if (!customer?.name || items.length === 0) return;
     const shipStateCombined = shipCode
       ? `${shipTo.state ?? ""} - ${shipCode}`
