@@ -400,12 +400,13 @@ export default function Invoices() {
             <div className="grid gap-2 mt-6">
             <label className="text-sm">Recent invoices</label>
             <div className="grid gap-2">
-              {list.slice(0, 10).map((inv)=>{
+              {list.slice(0, 10).map((inv, i)=>{
                 const msg = `Invoice ${inv.number}\nDate: ${new Date(inv.date).toLocaleDateString()}\nTo: ${inv.customer.name}\nTotal: ${INR(inv.totals.total)}\nFrom: ${Orgs[inv.org].name}`;
                 const wa = `https://wa.me/?text=${encodeURIComponent(msg)}`;
                 const mail = `mailto:?subject=${encodeURIComponent(`Invoice ${inv.number} from ${Orgs[inv.org].name}`)}&body=${encodeURIComponent(msg)}`;
+                const key = inv.id ?? `inv-${inv.org}-${inv.number}-${i}`;
                 return (
-                  <div key={inv.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border rounded-md p-2">
+                  <div key={key} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border rounded-md p-2">
                     <div className="text-sm">
                       <div className="font-medium">{inv.number}</div>
                       <div className="text-muted-foreground">{new Date(inv.date).toLocaleDateString()} • {inv.customer.name} • {INR(inv.totals.total)}</div>
