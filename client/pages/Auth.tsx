@@ -1,6 +1,12 @@
 import { useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuthContext } from "@/hooks/SupabaseAuthProvider";
@@ -9,36 +15,37 @@ const orgDisplay = (org: string | null) =>
   org === "vighneshwar"
     ? "Vighneshwar Traders"
     : org === "rohit"
-    ? "Rohit Enterprises"
-    : "Your Business";
+      ? "Rohit Enterprises"
+      : "Your Business";
 
 export default function Auth() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const org = useMemo(() => params.get("org"), [params]);
-  const { signInWithPassword, signInWithMagicLink, signUpWithPassword } = useAuthContext()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const { signInWithPassword, signInWithMagicLink, signUpWithPassword } =
+    useAuthContext();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const go = () => navigate(`/dashboard?org=${org ?? "rohit"}`);
 
   async function handleSignIn() {
     try {
-      const res = await signInWithPassword(email, password)
-      if (res.error) throw res.error
-      go()
+      const res = await signInWithPassword(email, password);
+      if (res.error) throw res.error;
+      go();
     } catch (e: any) {
-      alert(e.message || 'Sign in failed')
+      alert(e.message || "Sign in failed");
     }
   }
 
   async function handleMagicLink() {
     try {
-      const res = await signInWithMagicLink(email)
-      if (res.error) throw res.error
-      alert('Check your email for a magic link')
+      const res = await signInWithMagicLink(email);
+      if (res.error) throw res.error;
+      alert("Check your email for a magic link");
     } catch (e: any) {
-      alert(e.message || 'Failed to send magic link')
+      alert(e.message || "Failed to send magic link");
     }
   }
 
@@ -71,11 +78,23 @@ export default function Auth() {
           </div>
           <div className="grid gap-3">
             <label className="text-sm font-medium">Email</label>
-            <Input placeholder="you@example.com" type="email" value={email} onChange={(e) => setEmail((e.target as HTMLInputElement).value)} />
+            <Input
+              placeholder="you@example.com"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail((e.target as HTMLInputElement).value)}
+            />
           </div>
           <div className="grid gap-3">
             <label className="text-sm font-medium">Password</label>
-            <Input placeholder="••••••••" type="password" value={password} onChange={(e) => setPassword((e.target as HTMLInputElement).value)} />
+            <Input
+              placeholder="••••••••"
+              type="password"
+              value={password}
+              onChange={(e) =>
+                setPassword((e.target as HTMLInputElement).value)
+              }
+            />
           </div>
           <div className="flex items-end flex-col md:flex-row md:items-end md:gap-2">
             <div className="w-full md:w-auto md:flex-1">
@@ -84,7 +103,11 @@ export default function Auth() {
               </Button>
             </div>
             <div className="w-full md:w-auto mt-2 md:mt-0">
-              <Button variant="outline" className="w-full" onClick={handleMagicLink}>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleMagicLink}
+              >
                 Send magic link
               </Button>
             </div>
@@ -94,10 +117,15 @@ export default function Auth() {
       <Card>
         <CardHeader>
           <CardTitle>Free-tier cloud</CardTitle>
-          <CardDescription>Supabase, Netlify, or Vercel for storage & APIs</CardDescription>
+          <CardDescription>
+            Supabase, Netlify, or Vercel for storage & APIs
+          </CardDescription>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p>Start on free tiers and scale later. Object storage for PDFs, simple auth, and serverless functions.</p>
+          <p>
+            Start on free tiers and scale later. Object storage for PDFs, simple
+            auth, and serverless functions.
+          </p>
           <ul className="list-disc pl-5 space-y-1">
             <li>Invoice PDFs in storage buckets</li>
             <li>Row-level security per business</li>
@@ -111,7 +139,8 @@ export default function Auth() {
           <CardDescription>Distinct workspaces per business</CardDescription>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground">
-          Separate logins, dashboards, and reports for Rohit Enterprises and Vighneshwar Traders.
+          Separate logins, dashboards, and reports for Rohit Enterprises and
+          Vighneshwar Traders.
         </CardContent>
       </Card>
     </div>
