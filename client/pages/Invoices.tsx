@@ -206,27 +206,76 @@ export default function Invoices() {
     return false;
   }
 
+  function sanitizeFileName(raw: string) {
+    return raw
+      .replace(/[^a-zA-Z0-9\-_. ]+/g, "-")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 120);
+  }
+
   async function generateAndUploadPdf(inv: Invoice) {
     setPdfTargetInv(inv);
     await new Promise((r) => requestAnimationFrame(() => r(null)));
     const node = pdfRef.current;
     if (!node) throw new Error("PDF container not ready");
-    const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#ffffff" });
-    const imgData = canvas.toDataURL("image/png");
+
+    // Render HTML to canvas at a moderate scale to reduce file size
+    const canvas = await html2canvas(node, { scale: 1.5, backgroundColor: "#ffffff" });
+
     const pdf = new jsPDF("p", "pt", "a4");
+    const margin = 24; // pts
     const pageWidth = pdf.internal.pageSize.getWidth();
-    const imgWidth = pageWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth - margin * 2;
+
+    // Conversion between canvas px and PDF pts for the target width
+    const pxPerPt = canvas.width / imgWidth;
+    const pageHeightPx = Math.floor((pageHeight - margin * 2) * pxPerPt);
+
+    // Create multipage PDF by slicing the canvas per page
+    let offsetPx = 0;
+    let pageIndex = 0;
+    while (offsetPx < canvas.height) {
+      const sliceHeightPx = Math.min(pageHeightPx, canvas.height - offsetPx);
+      const sliceCanvas = document.createElement("canvas");
+      sliceCanvas.width = canvas.width;
+      sliceCanvas.height = sliceHeightPx;
+      const ctx = sliceCanvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas context not available");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+      ctx.drawImage(
+        canvas,
+        0,
+        offsetPx,
+        canvas.width,
+        sliceHeightPx,
+        0,
+        0,
+        sliceCanvas.width,
+        sliceHeightPx,
+      );
+      const imgData = sliceCanvas.toDataURL("image/jpeg", 0.85);
+      if (pageIndex > 0) pdf.addPage();
+      const sliceHeightPt = sliceHeightPx / pxPerPt;
+      pdf.addImage(imgData, "JPEG", margin, margin, imgWidth, sliceHeightPt);
+      offsetPx += sliceHeightPx;
+      pageIndex += 1;
+    }
+
     const blob = pdf.output("blob");
-    const file = new File([blob], `${inv.number || inv.id}.pdf`, { type: "application/pdf" });
-    await uploadInvoicePdf(inv.org, inv.id, file);
+    const baseName = `${inv.number || inv.id} - ${inv.customer?.name || "Customer"}`;
+    const safeName = `${sanitizeFileName(baseName)}.pdf`;
+    const file = new File([blob], safeName, { type: "application/pdf" });
+
+    await uploadInvoicePdf(inv.org, safeName, file);
     if (user?.id) {
       await supabase.from("invoices").insert({
         org_id: inv.org,
         user_id: user.id,
-        storage_path: `${inv.org}/invoices/${inv.id}.pdf`,
-        filename: `${inv.number || inv.id}.pdf`,
+        storage_path: `${inv.org}/invoices/${safeName}`,
+        filename: safeName,
         total: inv.totals.total,
       });
     }
@@ -807,17 +856,31 @@ export default function Invoices() {
                     />
                   </label>
                 </div>
-                <Button onClick={() => saveInvoice(false)}>
-                  {editing ? "Update invoice" : "Save invoice"}
+                <Button onClick={() => saveInvoice(true)}>
+                  {editing ? "Update & Upload PDF" : "Save & Upload PDF"}
                 </Button>
                 {editing && (
                   <Button variant="ghost" onClick={() => setEditing(null)}>
                     Cancel edit
                   </Button>
                 )}
-                <Button variant="outline" onClick={() => saveInvoice(true)}>
-                  Save PDF to Cloud
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => saveInvoice(false)}>
+                    Save only
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      await saveInvoice(true);
+                      window.print();
+                    }}
+                  >
+                    Print & Upload PDF
+                  </Button>
+                  <Button variant="outline" onClick={() => window.print()}>
+                    Print
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
