@@ -807,7 +807,7 @@ export default function Invoices() {
                     />
                   </label>
                 </div>
-                <Button onClick={saveInvoice}>
+                <Button onClick={() => saveInvoice(false)}>
                   {editing ? "Update invoice" : "Save invoice"}
                 </Button>
                 {editing && (
