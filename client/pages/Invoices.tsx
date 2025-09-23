@@ -822,6 +822,11 @@ export default function Invoices() {
             </div>
           </div>
 
+          {/* Offscreen render for PDF capture */}
+          <div className="screen-only" style={{ position: "absolute", left: -10000, top: 0, width: 794, background: "#fff" }}>
+            <div ref={pdfRef}>{pdfTargetInv && <InvoicePrint invoice={pdfTargetInv} />}</div>
+          </div>
+
           <div className="print-only">
             <InvoicePrint
               invoice={
