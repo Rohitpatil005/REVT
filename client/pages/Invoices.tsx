@@ -241,8 +241,8 @@ export default function Invoices() {
                 if (!autofillCustomerByName(v)) setCustomer({ ...customer, name: v });
               }} />
               <datalist id="custs">
-                {customers.map((c)=> (
-                  <option key={c.id} value={c.name} />
+                {customers.map((c, i)=> (
+                  <option key={c.id ?? `cust-${c.org}-${c.name}-${i}`} value={c.name} />
                 ))}
               </datalist>
               <Input placeholder="GSTIN" value={customer.gstin ?? ""} onChange={(e)=>setCustomer({...customer, gstin: e.target.value})} />
@@ -338,8 +338,8 @@ export default function Invoices() {
               </table>
             </div>
             <datalist id="prods">
-              {products.map((p)=> (
-                <option key={p.id} value={p.name} />
+              {products.map((p, i)=> (
+                <option key={p.id ?? `prod-${p.org}-${p.name}-${i}`} value={p.name} />
               ))}
             </datalist>
             <div className="flex justify-between">
