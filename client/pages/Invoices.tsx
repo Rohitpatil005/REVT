@@ -815,8 +815,8 @@ export default function Invoices() {
                     Cancel edit
                   </Button>
                 )}
-                <Button variant="outline" onClick={() => window.print()}>
-                  Print / Save PDF
+                <Button variant="outline" onClick={() => saveInvoice(true)}>
+                  Save PDF to Cloud
                 </Button>
               </div>
             </div>
