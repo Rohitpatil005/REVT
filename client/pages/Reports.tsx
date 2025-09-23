@@ -76,7 +76,7 @@ export default function Reports() {
             const wa = `https://wa.me/?text=${encodeURIComponent(msg)}`;
             const mail = `mailto:?subject=${encodeURIComponent(`Invoice ${inv.number} from ${Orgs[inv.org].name}`)}&body=${encodeURIComponent(msg)}`;
             return (
-            <div key={inv.id} className="rounded-md border p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div key={inv.id ?? `${inv.org}-${inv.number}-${inv.date}`} className="rounded-md border p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="text-sm">
                 <div className="font-medium">{inv.number}</div>
                 <div className="text-muted-foreground">{new Date(inv.date).toLocaleDateString()} · {inv.customer.name}</div>
