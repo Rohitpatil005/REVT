@@ -241,8 +241,8 @@ export default function Invoices() {
                 if (!autofillCustomerByName(v)) setCustomer({ ...customer, name: v });
               }} />
               <datalist id="custs">
-                {customers.map((c, i)=> (
-                  <option key={`${c.id}-${c.createdAt}-${i}`} value={c.name} />
+                {customers.map((c)=> (
+                  <option key={c.id} value={c.name} />
                 ))}
               </datalist>
               <Input placeholder="GSTIN" value={customer.gstin ?? ""} onChange={(e)=>setCustomer({...customer, gstin: e.target.value})} />
@@ -273,8 +273,8 @@ export default function Invoices() {
               </div>
               <Input className="sm:col-span-3" placeholder="Address" list="shipAddrs" value={shipTo.address ?? ""} onChange={(e)=>setShipTo({ ...shipTo, address: e.target.value })} />
               <datalist id="shipAddrs">
-                {shipAddressMemory.map((a, i)=> (
-                  <option key={`${i}-${a}`} value={a} />
+                {shipAddressMemory.map((a)=> (
+                  <option key={a} value={a} />
                 ))}
               </datalist>
             </div>
@@ -338,8 +338,8 @@ export default function Invoices() {
               </table>
             </div>
             <datalist id="prods">
-              {products.map((p, i)=> (
-                <option key={`${p.id}-${p.createdAt}-${i}`} value={p.name} />
+              {products.map((p)=> (
+                <option key={p.id} value={p.name} />
               ))}
             </datalist>
             <div className="flex justify-between">
