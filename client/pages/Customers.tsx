@@ -46,8 +46,8 @@ export default function Customers() {
           </div>
           <div className="space-y-2">
             {list.length===0 && <div className="text-sm text-muted-foreground">No customers yet.</div>}
-            {list.map((c)=> (
-              <div key={c.id} className="rounded-md border p-3">
+            {list.map((c, i)=> (
+              <div key={c.id ?? `cust-${c.org}-${c.name}-${i}`} className="rounded-md border p-3">
                 <div className="font-medium">{c.name}</div>
                 <div className="text-xs text-muted-foreground">{c.gstin || "GSTIN N/A"} · {c.state || "State N/A"}</div>
               </div>
