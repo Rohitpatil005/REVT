@@ -1,5 +1,8 @@
 {
   "name": "fusion-starter",
+  "version": "0.1.0",
+  "description": "Rohit Billing Suite desktop & web app",
+  "author": "Rohit Patil",
   "private": true,
   "type": "module",
   "pkg": {
@@ -18,7 +21,6 @@
     "start": "node dist/server/node-build.mjs",
     "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
     "electron:build": "npm run build && electron-builder -w appx",
-    "electron:msix": "npm run build && electron-builder -w appx",
     "test": "vitest --run",
     "format.fix": "prettier --write .",
     "typecheck": "tsc"
@@ -26,7 +28,6 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.47.10",
     "dotenv": "^17.2.1",
-    "electron": "^30.5.1",
     "express": "^5.1.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.2",
@@ -80,6 +81,7 @@
     "concurrently": "^9.1.2",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
+    "electron": "^31.7.7",
     "electron-builder": "^24.13.3",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.23.12",
