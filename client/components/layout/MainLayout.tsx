@@ -2,6 +2,7 @@ import { PropsWithChildren } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuthContext } from "@/hooks/SupabaseAuthProvider";
 
 const navItems = [
   { to: "/", label: "Home" },
@@ -14,6 +15,7 @@ const navItems = [
 
 export default function MainLayout({ children }: PropsWithChildren) {
   const { pathname, search } = useLocation();
+  const { user } = useAuthContext();
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-background to-secondary/40">
       <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -26,7 +28,7 @@ export default function MainLayout({ children }: PropsWithChildren) {
             </div>
           </Link>
           <nav className="hidden md:flex items-center gap-2">
-            {navItems.map((n) => (
+            {(user ? navItems : [{ to: "/", label: "Home" }]).map((n) => (
               <Link key={n.to} to={{ pathname: n.to, search }}>
                 <Button
                   variant={pathname === n.to ? "secondary" : "ghost"}
@@ -38,15 +40,24 @@ export default function MainLayout({ children }: PropsWithChildren) {
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            <Link to="/auth?org=rohit">
-              <Button size="sm" className="hidden sm:inline-flex">Rohit Enterprises</Button>
-            </Link>
-            <Link to="/auth?org=vighneshwar">
-              <Button size="sm" variant="outline" className="hidden sm:inline-flex">Vighneshwar Traders</Button>
-            </Link>
-            <Link to="/auth" className="sm:hidden">
-              <Button size="sm">Sign in</Button>
-            </Link>
+            {!user && (
+              <>
+                <Link to="/auth?org=rohit">
+                  <Button size="sm" className="hidden sm:inline-flex">Rohit Enterprises</Button>
+                </Link>
+                <Link to="/auth?org=vighneshwar">
+                  <Button size="sm" variant="outline" className="hidden sm:inline-flex">Vighneshwar Traders</Button>
+                </Link>
+                <Link to="/auth" className="sm:hidden">
+                  <Button size="sm">Sign in</Button>
+                </Link>
+              </>
+            )}
+            {user && (
+              <Link to={{ pathname: "/dashboard", search }}>
+                <Button size="sm" variant="secondary">Dashboard</Button>
+              </Link>
+            )}
           </div>
         </div>
       </header>
