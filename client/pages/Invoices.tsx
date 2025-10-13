@@ -30,6 +30,8 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { invoicePdfFileName } from "@/lib/fileName";
 import { removeFile } from "../../utils/supabaseStorage";
+import { savePdfToAppFolder } from "@/utils/nativeBridge";
+import { queueUpload, retryQueuedUploads, onOnlineRetry } from "@/utils/offlineQueue";
 
 function useOrg(): Org {
   const [params] = useSearchParams();
@@ -49,6 +51,7 @@ export default function Invoices() {
   const [pdfTargetInv, setPdfTargetInv] = useState<Invoice | null>(null);
 
   useEffect(() => {
+    onOnlineRetry();
     LocalAdapter.listCustomers(org).then(setCustomers);
     LocalAdapter.listInvoices(org).then(setList);
     LocalAdapter.listProducts(org).then(setProducts);
@@ -265,25 +268,34 @@ export default function Invoices() {
     const safeName = invoicePdfFileName(inv);
     const file = new File([blob], safeName, { type: "application/pdf" });
 
+    // Save locally (Electron folder or browser download)
+    let localPath: string | null = null;
     try {
-      if (typeof window !== "undefined" && window.electronAPI?.saveInvoicePDF) {
-        const ab = await blob.arrayBuffer();
-        await window.electronAPI.saveInvoicePDF(inv.org, safeName, new Uint8Array(ab));
-      }
+      localPath = await savePdfToAppFolder(inv.org, file, safeName);
     } catch (e) {
       console.error("Local save failed", e);
     }
 
-    await uploadInvoicePdf(inv.org, safeName, file);
-    if (user?.id) {
-      await supabase.from("invoices").insert({
-        org_id: inv.org,
-        user_id: user.id,
-        storage_path: `${inv.org}/invoices/${safeName}`,
-        filename: safeName,
-        total: inv.totals.total,
-      });
+    // Try cloud upload; if offline or failed, queue for later
+    try {
+      if (!navigator.onLine) throw new Error("offline");
+      await uploadInvoicePdf(inv.org, safeName, file);
+      if (user?.id) {
+        await supabase.from("invoices").insert({
+          org_id: inv.org,
+          user_id: user.id,
+          storage_path: `${inv.org}/invoices/${safeName}`,
+          filename: safeName,
+          total: inv.totals.total,
+        });
+      }
+    } catch (e) {
+      queueUpload({ org: inv.org, fileName: safeName, localPath });
     }
+
+    // Opportunistically retry any queued uploads
+    retryQueuedUploads().catch(()=>{});
+
     setPdfTargetInv(null);
   }
 
