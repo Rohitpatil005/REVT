@@ -11,6 +11,8 @@ import {
 import { LocalAdapter } from "@/lib/data/local";
 import { Invoice, Org, INR } from "@/lib/data/types";
 import { Orgs } from "@/lib/orgs";
+import { removeFile } from "../../utils/supabaseStorage";
+import { invoicePdfFileName } from "@/lib/fileName";
 
 function useOrg(): Org {
   const [p] = useSearchParams();
@@ -102,20 +104,31 @@ export default function Reports() {
               No invoices yet.
             </div>
           )}
-          {list.map((inv) => {
+          {list.map((inv, i) => {
             const msg = `Invoice ${inv.number}\nDate: ${new Date(inv.date).toLocaleDateString()}\nTo: ${inv.customer.name}\nTotal: ${INR(inv.totals.total)}\nFrom: ${Orgs[inv.org].name}`;
             const wa = `https://wa.me/?text=${encodeURIComponent(msg)}`;
             const mail = `mailto:?subject=${encodeURIComponent(`Invoice ${inv.number} from ${Orgs[inv.org].name}`)}&body=${encodeURIComponent(msg)}`;
+            const key = `${inv.id || `${inv.org}-${inv.number}-${inv.date}`}-${inv.createdAt || i}`;
+            async function handleRemove() {
+              if (!confirm(`Delete invoice ${inv.number}?`)) return;
+              try {
+                await LocalAdapter.deleteInvoice(inv.org, inv.id);
+                const fileName = invoicePdfFileName(inv);
+                try { await removeFile(inv.org, fileName); } catch {}
+                setList((l) => l.filter((x) => x.id !== inv.id));
+              } catch (e: any) {
+                alert(e?.message || "Failed to delete");
+              }
+            }
             return (
               <div
-                key={inv.id ?? `${inv.org}-${inv.number}-${inv.date}`}
+                key={key}
                 className="rounded-md border p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
               >
                 <div className="text-sm">
                   <div className="font-medium">{inv.number}</div>
                   <div className="text-muted-foreground">
-                    {new Date(inv.date).toLocaleDateString()} ·{" "}
-                    {inv.customer.name}
+                    {new Date(inv.date).toLocaleDateString()} · {inv.customer.name}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -142,6 +155,9 @@ export default function Reports() {
                       onClick={() => (window.location.href = mail)}
                     >
                       Email
+                    </Button>
+                    <Button variant="destructive" onClick={handleRemove}>
+                      Remove
                     </Button>
                   </div>
                 </div>
