@@ -2,6 +2,10 @@ import { app, BrowserWindow, ipcMain } from "electron";
 import path from "path";
 import fs from "fs/promises";
 import os from "os";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function getOrgFolder(org) {
   const base = path.join(os.homedir(), "Documents");
@@ -19,7 +23,7 @@ async function createWindow() {
     width: 1200,
     height: 800,
     webPreferences: {
-      preload: path.join(process.cwd(), "electron", "preload.mjs"),
+      preload: path.join(__dirname, "preload.mjs"),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -32,7 +36,7 @@ async function createWindow() {
       process.env.VITE_DEV_SERVER_URL || "http://localhost:5173",
     );
   } else {
-    const indexPath = path.join(process.cwd(), "dist", "spa", "index.html");
+    const indexPath = path.join(__dirname, "..", "dist", "spa", "index.html");
     await win.loadFile(indexPath);
   }
 }
