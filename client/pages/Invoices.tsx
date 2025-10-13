@@ -31,7 +31,11 @@ import jsPDF from "jspdf";
 import { invoicePdfFileName } from "@/lib/fileName";
 import { removeFile } from "../../utils/supabaseStorage";
 import { savePdfToAppFolder } from "@/utils/nativeBridge";
-import { queueUpload, retryQueuedUploads, onOnlineRetry } from "@/utils/offlineQueue";
+import {
+  queueUpload,
+  retryQueuedUploads,
+  onOnlineRetry,
+} from "@/utils/offlineQueue";
 
 function useOrg(): Org {
   const [params] = useSearchParams();
@@ -294,7 +298,7 @@ export default function Invoices() {
     }
 
     // Opportunistically retry any queued uploads
-    retryQueuedUploads().catch(()=>{});
+    retryQueuedUploads().catch(() => {});
 
     setPdfTargetInv(null);
   }
