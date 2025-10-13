@@ -1,10 +1,10 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer } from 'electron';
 
-contextBridge.exposeInMainWorld("electronAPI", {
-  saveInvoicePDF: async (org, fileName, data) => {
-    return await ipcRenderer.invoke("save-invoice-pdf", { org, fileName, data });
+contextBridge.exposeInMainWorld('electron', {
+  savePdf: async (org, fileName, arrayBuffer) => {
+    return await ipcRenderer.invoke('save-pdf', { org, fileName, arrayBuffer });
   },
-  openInvoicesFolder: async (org) => {
-    return await ipcRenderer.invoke("open-invoices-folder", { org });
-  },
+  readFile: async (fullPath) => {
+    return await ipcRenderer.invoke('read-file', { fullPath });
+  }
 });
