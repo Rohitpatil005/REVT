@@ -114,7 +114,9 @@ export default function Reports() {
               try {
                 await LocalAdapter.deleteInvoice(inv.org, inv.id);
                 const fileName = invoicePdfFileName(inv);
-                try { await removeFile(inv.org, fileName); } catch {}
+                try {
+                  await removeFile(inv.org, fileName);
+                } catch {}
                 setList((l) => l.filter((x) => x.id !== inv.id));
               } catch (e: any) {
                 alert(e?.message || "Failed to delete");
@@ -128,7 +130,8 @@ export default function Reports() {
                 <div className="text-sm">
                   <div className="font-medium">{inv.number}</div>
                   <div className="text-muted-foreground">
-                    {new Date(inv.date).toLocaleDateString()} · {inv.customer.name}
+                    {new Date(inv.date).toLocaleDateString()} ·{" "}
+                    {inv.customer.name}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

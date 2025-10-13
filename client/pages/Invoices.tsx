@@ -952,10 +952,12 @@ export default function Invoices() {
                     try {
                       await LocalAdapter.deleteInvoice(inv.org, inv.id);
                       const fileName = invoicePdfFileName(inv);
-                      try { await removeFile(inv.org, fileName); } catch {}
-                      setList((l)=> l.filter((x)=> x.id !== inv.id));
+                      try {
+                        await removeFile(inv.org, fileName);
+                      } catch {}
+                      setList((l) => l.filter((x) => x.id !== inv.id));
                     } catch (e: any) {
-                      alert(e?.message || 'Failed to delete');
+                      alert(e?.message || "Failed to delete");
                     }
                   }
                   return (
@@ -989,7 +991,9 @@ export default function Invoices() {
                         >
                           Send on Email
                         </Button>
-                        <Button variant="destructive" onClick={handleRemove}>Remove</Button>
+                        <Button variant="destructive" onClick={handleRemove}>
+                          Remove
+                        </Button>
                       </div>
                     </div>
                   );

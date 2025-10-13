@@ -1,4 +1,12 @@
-import { Customer, DataAdapter, Invoice, NumberingSettings, Org, Product, computeTotals } from "./types";
+import {
+  Customer,
+  DataAdapter,
+  Invoice,
+  NumberingSettings,
+  Org,
+  Product,
+  computeTotals,
+} from "./types";
 
 const NS = "rbs"; // namespace
 
@@ -19,14 +27,18 @@ function write<T>(k: string, v: T) {
   localStorage.setItem(k, JSON.stringify(v));
 }
 
-function now() { return Date.now(); }
+function now() {
+  return Date.now();
+}
 
 function fyStartYear(date: Date): number {
   const y = date.getFullYear();
   const m = date.getMonth(); // 0=Jan
   return m >= 3 ? y : y - 1; // FY starts in April (month 3)
 }
-function two(n: number): string { return String(n % 100).padStart(2, "0"); }
+function two(n: number): string {
+  return String(n % 100).padStart(2, "0");
+}
 function defaultNumbering(org: Org): NumberingSettings {
   const year = fyStartYear(new Date());
   return {
@@ -44,35 +56,43 @@ function withFyPrefix(n: NumberingSettings): string {
 
 export const LocalAdapter: DataAdapter = {
   async listCustomers(org) {
-    return read<Customer[]>(key(`${org}:customers`), []).sort((a,b)=>b.createdAt-a.createdAt);
+    return read<Customer[]>(key(`${org}:customers`), []).sort(
+      (a, b) => b.createdAt - a.createdAt,
+    );
   },
   async saveCustomer(c) {
     const id = c.id ?? crypto.randomUUID();
     const item: Customer = { id, createdAt: now(), ...c } as Customer;
     const k = key(`${item.org}:customers`);
     const all = read<Customer[]>(k, []);
-    const idx = all.findIndex((x)=>x.id===id);
-    if (idx>=0) all[idx]=item; else all.unshift(item);
+    const idx = all.findIndex((x) => x.id === id);
+    if (idx >= 0) all[idx] = item;
+    else all.unshift(item);
     write(k, all);
     return item;
   },
 
   async listProducts(org) {
-    return read<Product[]>(key(`${org}:products`), []).sort((a,b)=>b.createdAt-a.createdAt);
+    return read<Product[]>(key(`${org}:products`), []).sort(
+      (a, b) => b.createdAt - a.createdAt,
+    );
   },
   async saveProduct(p) {
     const id = p.id ?? crypto.randomUUID();
     const item: Product = { id, createdAt: now(), ...p } as Product;
     const k = key(`${item.org}:products`);
     const all = read<Product[]>(k, []);
-    const idx = all.findIndex((x)=>x.id===id);
-    if (idx>=0) all[idx]=item; else all.unshift(item);
+    const idx = all.findIndex((x) => x.id === id);
+    if (idx >= 0) all[idx] = item;
+    else all.unshift(item);
     write(k, all);
     return item;
   },
 
   async listInvoices(org) {
-    return read<Invoice[]>(key(`${org}:invoices`), []).sort((a,b)=>b.createdAt-a.createdAt);
+    return read<Invoice[]>(key(`${org}:invoices`), []).sort(
+      (a, b) => b.createdAt - a.createdAt,
+    );
   },
   async saveInvoice(i) {
     const k = key(`${i.org}:invoices`);
@@ -80,7 +100,10 @@ export const LocalAdapter: DataAdapter = {
 
     // numbering
     let num = i.number;
-    let numbering = read<NumberingSettings>(key(`${i.org}:numbering`), defaultNumbering(i.org));
+    let numbering = read<NumberingSettings>(
+      key(`${i.org}:numbering`),
+      defaultNumbering(i.org),
+    );
     if (!num) {
       const d = i.date ? new Date(i.date + "T00:00:00") : new Date();
       const fy = fyStartYear(d);
@@ -94,18 +117,31 @@ export const LocalAdapter: DataAdapter = {
       write(key(`${i.org}:numbering`), numbering);
     }
 
-    const totals = i.totals ?? computeTotals(i.items, i.taxType, i.taxRate, i.freight ?? 0);
+    const totals =
+      i.totals ?? computeTotals(i.items, i.taxType, i.taxRate, i.freight ?? 0);
     const id = i.id ?? crypto.randomUUID();
-    const inv: Invoice = { id, number: num!, totals, createdAt: now(), freight: i.freight ?? 0, meta: i.meta, ...i } as Invoice;
+    const inv: Invoice = {
+      id,
+      number: num!,
+      totals,
+      createdAt: now(),
+      freight: i.freight ?? 0,
+      meta: i.meta,
+      ...i,
+    } as Invoice;
 
-    const idx = all.findIndex((x)=>x.id===id);
-    if (idx>=0) all[idx]=inv; else all.unshift(inv);
+    const idx = all.findIndex((x) => x.id === id);
+    if (idx >= 0) all[idx] = inv;
+    else all.unshift(inv);
     write(k, all);
     return inv;
   },
 
   async getNumbering(org) {
-    const existing = read<NumberingSettings>(key(`${org}:numbering`), defaultNumbering(org));
+    const existing = read<NumberingSettings>(
+      key(`${org}:numbering`),
+      defaultNumbering(org),
+    );
     // Ensure fiscal-year alignment for suggestions
     const fy = fyStartYear(new Date());
     if (existing.year !== fy) {
@@ -118,7 +154,10 @@ export const LocalAdapter: DataAdapter = {
   async incrementNumber(org) {
     const cur = await this.getNumbering(org);
     const fy = fyStartYear(new Date());
-    if (cur.year !== fy) { cur.year = fy; cur.next = 1; }
+    if (cur.year !== fy) {
+      cur.year = fy;
+      cur.next = 1;
+    }
     cur.next += 1;
     write(key(`${org}:numbering`), cur);
     return cur;
