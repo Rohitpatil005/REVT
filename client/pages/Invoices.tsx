@@ -265,6 +265,15 @@ export default function Invoices() {
     const safeName = invoicePdfFileName(inv);
     const file = new File([blob], safeName, { type: "application/pdf" });
 
+    try {
+      if (typeof window !== "undefined" && window.electronAPI?.saveInvoicePDF) {
+        const ab = await blob.arrayBuffer();
+        await window.electronAPI.saveInvoicePDF(inv.org, safeName, new Uint8Array(ab));
+      }
+    } catch (e) {
+      console.error("Local save failed", e);
+    }
+
     await uploadInvoicePdf(inv.org, safeName, file);
     if (user?.id) {
       await supabase.from("invoices").insert({
