@@ -14,17 +14,20 @@
     ]
   },
   "scripts": {
-    "dev": "vite",
-    "build": "npm run build:client && npm run build:server",
-    "build:client": "vite build",
-    "build:server": "vite build --config vite.config.server.ts",
-    "start": "node dist/server/node-build.mjs",
-    "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
-    "electron:build": "npm run build && electron-builder -w appx",
-    "test": "vitest --run",
-    "format.fix": "prettier --write .",
-    "typecheck": "tsc"
-  },
+  "dev": "vite",
+  "build": "npm run build:client && npm run build:server",
+  "build:client": "vite build",
+  "build:server": "vite build --config vite.config.server.ts",
+  "start": "node dist/server/node-build.mjs",
+  "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
+  "electron:build": "npm run build && electron-builder -w appx",
+  "electron:build:nsis": "npm run build && electron-builder -w nsis",  
+  "electron:build:all": "npm run build && electron-builder -w appx,nsis",
+  "test": "vitest --run",
+  "format.fix": "prettier --write .",
+  "typecheck": "tsc"
+}
+,
   "dependencies": {
     "@supabase/supabase-js": "^2.47.10",
     "dotenv": "^17.2.1",
@@ -139,7 +142,8 @@
     "appx": {
       "displayName": "Rohit Billing Suite",
       "identityName": "com.rohit.billing",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#ffffff",
+      "publisher": "CN=Rohit"
     }
   }
 }
