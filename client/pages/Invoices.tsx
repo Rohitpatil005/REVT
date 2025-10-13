@@ -28,6 +28,8 @@ import supabase from "../../utils/supabase";
 import { uploadInvoicePdf } from "../../utils/supabaseStorage";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { invoicePdfFileName } from "@/lib/fileName";
+import { removeFile } from "../../utils/supabaseStorage";
 
 function useOrg(): Org {
   const [params] = useSearchParams();
@@ -206,14 +208,6 @@ export default function Invoices() {
     return false;
   }
 
-  function sanitizeFileName(raw: string) {
-    return raw
-      .replace(/[^a-zA-Z0-9\-_. ]+/g, "-")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 120);
-  }
-
   async function generateAndUploadPdf(inv: Invoice) {
     setPdfTargetInv(inv);
     await new Promise((r) => requestAnimationFrame(() => r(null)));
@@ -268,8 +262,7 @@ export default function Invoices() {
     }
 
     const blob = pdf.output("blob");
-    const baseName = `${inv.number || inv.id} - ${inv.customer?.name || "Customer"}`;
-    const safeName = `${sanitizeFileName(baseName)}.pdf`;
+    const safeName = invoicePdfFileName(inv);
     const file = new File([blob], safeName, { type: "application/pdf" });
 
     await uploadInvoicePdf(inv.org, safeName, file);
@@ -953,7 +946,18 @@ export default function Invoices() {
                   const msg = `Invoice ${inv.number}\nDate: ${new Date(inv.date).toLocaleDateString()}\nTo: ${inv.customer.name}\nTotal: ${INR(inv.totals.total)}\nFrom: ${Orgs[inv.org].name}`;
                   const wa = `https://wa.me/?text=${encodeURIComponent(msg)}`;
                   const mail = `mailto:?subject=${encodeURIComponent(`Invoice ${inv.number} from ${Orgs[inv.org].name}`)}&body=${encodeURIComponent(msg)}`;
-                  const key = inv.id ?? `inv-${inv.org}-${inv.number}-${i}`;
+                  const key = `${inv.id || `inv-${inv.org}-${inv.number}-${i}`}-${inv.createdAt || i}`;
+                  async function handleRemove() {
+                    if (!confirm(`Delete invoice ${inv.number}?`)) return;
+                    try {
+                      await LocalAdapter.deleteInvoice(inv.org, inv.id);
+                      const fileName = invoicePdfFileName(inv);
+                      try { await removeFile(inv.org, fileName); } catch {}
+                      setList((l)=> l.filter((x)=> x.id !== inv.id));
+                    } catch (e: any) {
+                      alert(e?.message || 'Failed to delete');
+                    }
+                  }
                   return (
                     <div
                       key={key}
@@ -985,6 +989,7 @@ export default function Invoices() {
                         >
                           Send on Email
                         </Button>
+                        <Button variant="destructive" onClick={handleRemove}>Remove</Button>
                       </div>
                     </div>
                   );

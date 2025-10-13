@@ -123,4 +123,11 @@ export const LocalAdapter: DataAdapter = {
     write(key(`${org}:numbering`), cur);
     return cur;
   },
+
+  async deleteInvoice(org, id) {
+    const k = key(`${org}:invoices`);
+    const all = read<Invoice[]>(k, []);
+    const next = all.filter((x) => x.id !== id);
+    write(k, next);
+  },
 };

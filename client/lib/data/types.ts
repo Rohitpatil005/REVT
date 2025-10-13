@@ -97,7 +97,8 @@ export interface DataAdapter {
 
   getNumbering(org: Org): Promise<NumberingSettings>;
   incrementNumber(org: Org): Promise<NumberingSettings>;
-}
+  deleteInvoice(org: Org, id: string): Promise<void>;
+ }
 
 export function computeTotals(
   items: InvoiceItem[],
