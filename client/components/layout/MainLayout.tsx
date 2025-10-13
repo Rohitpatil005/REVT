@@ -51,19 +51,7 @@ export default function MainLayout({ children }: PropsWithChildren) {
         </div>
       </header>
       <main className="container mx-auto flex-1 py-8">{children}</main>
-      <footer className="border-t bg-background/80">
-        <div className="container mx-auto py-6 text-sm text-muted-foreground flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p>
-            © {new Date().getFullYear()} Rohit Enterprises · Dual-business invoicing for Rohit Enterprises & Vighneshwar Traders
-          </p>
-          <p className="flex items-center gap-3">
-            <span>Free-tier ready:</span>
-            <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-accent"/>Supabase</span>
-            <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-accent"/>Netlify</span>
-            <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-accent"/>Vercel</span>
-          </p>
-        </div>
-      </footer>
+
     </div>
   );
 }
