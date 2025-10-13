@@ -25,9 +25,12 @@ async function createWindow() {
     },
   });
 
-  const isDev = process.env.ELECTRON_DEV || process.env.NODE_ENV !== "production";
+  const isDev =
+    process.env.ELECTRON_DEV || process.env.NODE_ENV !== "production";
   if (isDev) {
-    await win.loadURL(process.env.VITE_DEV_SERVER_URL || "http://localhost:5173");
+    await win.loadURL(
+      process.env.VITE_DEV_SERVER_URL || "http://localhost:5173",
+    );
   } else {
     const indexPath = path.join(process.cwd(), "dist", "spa", "index.html");
     await win.loadFile(indexPath);
