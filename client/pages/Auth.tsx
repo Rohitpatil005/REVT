@@ -114,35 +114,7 @@ export default function Auth() {
           </div>
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Free-tier cloud</CardTitle>
-          <CardDescription>
-            Supabase, Netlify, or Vercel for storage & APIs
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p>
-            Start on free tiers and scale later. Object storage for PDFs, simple
-            auth, and serverless functions.
-          </p>
-          <ul className="list-disc pl-5 space-y-1">
-            <li>Invoice PDFs in storage buckets</li>
-            <li>Row-level security per business</li>
-            <li>Serverless for generation & email</li>
-          </ul>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Separation of data</CardTitle>
-          <CardDescription>Distinct workspaces per business</CardDescription>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          Separate logins, dashboards, and reports for Rohit Enterprises and
-          Vighneshwar Traders.
-        </CardContent>
-      </Card>
+
     </div>
   );
 }

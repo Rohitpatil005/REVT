@@ -29,16 +29,7 @@ export default function Dashboard() {
           <Button className="justify-start" variant="secondary">Reports</Button>
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Next steps</CardTitle>
-          <CardDescription>Connect storage & enable PDF generation</CardDescription>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground space-y-2">
-          <p>Configure cloud storage (Supabase or Netlify/Vercel) to save generated invoices.</p>
-          <p>Add customer memory to auto-suggest addresses and GSTIN from past entries.</p>
-        </CardContent>
-      </Card>
+
     </div>
   );
 }
