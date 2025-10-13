@@ -25,9 +25,13 @@ async function createWindow() {
     },
   });
 
-  // Load built SPA (ensure you ran build)
-  const indexPath = path.join(process.cwd(), "dist", "spa", "index.html");
-  await win.loadFile(indexPath);
+  const isDev = process.env.ELECTRON_DEV || process.env.NODE_ENV !== "production";
+  if (isDev) {
+    await win.loadURL(process.env.VITE_DEV_SERVER_URL || "http://localhost:5173");
+  } else {
+    const indexPath = path.join(process.cwd(), "dist", "spa", "index.html");
+    await win.loadFile(indexPath);
+  }
 }
 
 app.whenReady().then(() => {
