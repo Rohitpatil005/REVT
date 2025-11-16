@@ -24,15 +24,8 @@ export async function savePdfToAppFolder(
     const res = await window.electron.savePdf(org, fileName, buf);
     return res.fullPath;
   }
-  // Fallback: trigger browser download
-  const url = URL.createObjectURL(file);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = fileName;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  // In browser, don't show download dialog - just save in IndexedDB or memory
+  // User can access it via WhatsApp/Email buttons instead
   return null;
 }
 

@@ -22,6 +22,7 @@ export default function Customers() {
   const nav = useNavigate();
   const [list, setList] = useState<Customer[]>([]);
   const [form, setForm] = useState<Partial<Customer>>({ org, name: "" });
+  const [editing, setEditing] = useState<string | null>(null);
 
   useEffect(() => {
     LocalAdapter.listCustomers(org).then(setList);
@@ -35,10 +36,32 @@ export default function Customers() {
       address: form.address,
       gstin: form.gstin,
       state: form.state,
-      id: undefined,
+      id: editing || undefined,
     });
-    setList((l) => [c, ...l]);
+    setList((l) => {
+      if (editing) {
+        return l.map((x) => (x.id === editing ? c : x));
+      }
+      if (l.find((x) => x.name === c.name)) return l;
+      return [c, ...l];
+    });
     setForm({ org, name: "" });
+    setEditing(null);
+  }
+
+  function startEdit(c: Customer) {
+    setEditing(c.id || null);
+    setForm(c);
+  }
+
+  async function deleteCustomer(id: string) {
+    if (!confirm("Delete this customer?")) return;
+    try {
+      await LocalAdapter.deleteCustomer(id);
+      setList((l) => l.filter((x) => x.id !== id));
+    } catch (e) {
+      alert("Failed to delete");
+    }
   }
 
   return (
@@ -87,7 +110,12 @@ export default function Customers() {
             />
           </div>
           <div>
-            <Button onClick={save}>Add customer</Button>
+            <Button onClick={save}>{editing ? "Update customer" : "Add customer"}</Button>
+            {editing && (
+              <Button variant="ghost" onClick={() => { setEditing(null); setForm({ org, name: "" }); }} className="ml-2">
+                Cancel
+              </Button>
+            )}
           </div>
           <div className="space-y-2">
             {list.length === 0 && (
@@ -98,11 +126,21 @@ export default function Customers() {
             {list.map((c, i) => (
               <div
                 key={c.id ?? `cust-${c.org}-${c.name}-${i}`}
-                className="rounded-md border p-3"
+                className="rounded-md border p-3 flex justify-between items-start"
               >
-                <div className="font-medium">{c.name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {c.gstin || "GSTIN N/A"} · {c.state || "State N/A"}
+                <div className="flex-1">
+                  <div className="font-medium">{c.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {c.gstin || "GSTIN N/A"} · {c.state || "State N/A"}
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="outline" onClick={() => startEdit(c)}>
+                    Edit
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => deleteCustomer(c.id!)}>
+                    Delete
+                  </Button>
                 </div>
               </div>
             ))}

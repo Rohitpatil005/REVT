@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import path from "path";
 import fs from "fs/promises";
+import fsSync from "fs";
 import os from "os";
 import { fileURLToPath } from "url";
 
@@ -9,8 +10,8 @@ const __dirname = path.dirname(__filename);
 
 function getOrgFolder(org) {
   const base = path.join(os.homedir(), "Documents");
-  if (org === "rohit") return path.join(base, "RE Invoices");
-  if (org === "vighneshwar") return path.join(base, "VT Invoices");
+  if (org === "rohit") return path.join(base, "Invoice Re");
+  if (org === "vighneshwar") return path.join(base, "Invoice VT");
   return path.join(base, "Invoices");
 }
 
@@ -36,8 +37,14 @@ async function createWindow() {
       process.env.VITE_DEV_SERVER_URL || "http://localhost:5173",
     );
   } else {
+    // In production, load from the built SPA files
+    // When packaged with electron-builder, files are in dist/spa
     const indexPath = path.join(__dirname, "..", "dist", "spa", "index.html");
-    await win.loadFile(indexPath);
+    if (fsSync.existsSync(indexPath)) {
+      await win.loadFile(indexPath);
+    } else {
+      console.error("index.html not found at:", indexPath);
+    }
   }
 }
 

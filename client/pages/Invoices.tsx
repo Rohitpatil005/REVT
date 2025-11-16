@@ -303,7 +303,7 @@ export default function Invoices() {
     setPdfTargetInv(null);
   }
 
-  async function saveInvoice(autoUploadPdf: boolean = false) {
+  async function saveInvoice(autoUploadPdf: boolean = true) {
     if (!customer?.name || items.length === 0) return;
     const shipStateCombined = shipCode
       ? `${shipTo.state ?? ""} - ${shipCode}`
@@ -342,7 +342,6 @@ export default function Invoices() {
         await generateAndUploadPdf(inv);
       } catch (e: any) {
         console.error("PDF generation/upload failed", e);
-        alert(e?.message || "Failed to generate or upload PDF");
       }
     }
 
@@ -355,7 +354,7 @@ export default function Invoices() {
       }
       return [inv, ...l];
     });
-    setEditing(null);
+    setEditing(inv);
     LocalAdapter.getNumbering(org).then((n) => {
       const yy1 = String(n.year % 100).padStart(2, "0");
       const yy2 = String((n.year + 1) % 100).padStart(2, "0");
@@ -878,28 +877,37 @@ export default function Invoices() {
                   </label>
                 </div>
                 <Button onClick={() => saveInvoice(true)}>
-                  {editing ? "Update & Upload PDF" : "Save & Upload PDF"}
+                  {editing ? "Update & Save" : "Save Invoice"}
                 </Button>
                 {editing && (
-                  <Button variant="ghost" onClick={() => setEditing(null)}>
-                    Cancel edit
+                  <Button variant="ghost" onClick={() => { setEditing(null); setForm({ org, name: "" }); setInvoiceNumber(""); }}>
+                    New Invoice
                   </Button>
                 )}
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={() => saveInvoice(false)}>
-                    Save only
+                    Save (No Cloud)
                   </Button>
                   <Button
                     variant="outline"
                     onClick={async () => {
                       await saveInvoice(true);
+                      setPdfTargetInv(editing);
+                      await new Promise(resolve => setTimeout(resolve, 1000));
                       window.print();
                     }}
                   >
-                    Print & Upload PDF
+                    Print (with Cloud Upload)
                   </Button>
-                  <Button variant="outline" onClick={() => window.print()}>
-                    Print
+                  <Button variant="outline" onClick={() => {
+                    if (!customer.name) {
+                      alert("Please fill in customer name before printing");
+                      return;
+                    }
+                    setPdfTargetInv(editing);
+                    setTimeout(() => window.print(), 300);
+                  }}>
+                    Print Only
                   </Button>
                 </div>
               </div>
@@ -922,45 +930,49 @@ export default function Invoices() {
             </div>
           </div>
 
-          <div className="print-only">
-            <InvoicePrint
-              invoice={
-                {
-                  id: "preview",
-                  org,
-                  number: invoiceNumber?.trim() || "PREVIEW",
-                  date,
-                  customer: {
-                    name: customer.name || "",
-                    address: customer.address,
-                    gstin: customer.gstin,
-                    state: customer.state,
-                  },
-                  shipping:
-                    shipTo.name ||
-                    shipTo.address ||
-                    shipTo.gstin ||
-                    shipTo.state ||
-                    shipCode
-                      ? {
-                          name: shipTo.name || customer.name || "",
-                          address: shipTo.address ?? customer.address,
-                          gstin: shipTo.gstin ?? customer.gstin,
-                          state: shipCode
-                            ? `${shipTo.state ?? ""} - ${shipCode}`
-                            : (shipTo.state ?? customer.state),
-                        }
-                      : undefined,
-                  items,
-                  taxType,
-                  taxRate,
-                  totals,
-                  freight,
-                  meta,
-                  createdAt: Date.now(),
-                } as unknown as Invoice
-              }
-            />
+          <div className="print-only" style={{ padding: 0, margin: 0, background: "white" }}>
+            {editing ? (
+              <InvoicePrint invoice={editing} />
+            ) : (
+              <InvoicePrint
+                invoice={
+                  {
+                    id: "preview",
+                    org,
+                    number: invoiceNumber?.trim() || "PREVIEW",
+                    date,
+                    customer: {
+                      name: customer.name || "",
+                      address: customer.address,
+                      gstin: customer.gstin,
+                      state: customer.state,
+                    },
+                    shipping:
+                      shipTo.name ||
+                      shipTo.address ||
+                      shipTo.gstin ||
+                      shipTo.state ||
+                      shipCode
+                        ? {
+                            name: shipTo.name || customer.name || "",
+                            address: shipTo.address ?? customer.address,
+                            gstin: shipTo.gstin ?? customer.gstin,
+                            state: shipCode
+                              ? `${shipTo.state ?? ""} - ${shipCode}`
+                              : (shipTo.state ?? customer.state),
+                          }
+                        : undefined,
+                    items,
+                    taxType,
+                    taxRate,
+                    totals,
+                    freight,
+                    meta,
+                    createdAt: Date.now(),
+                  } as unknown as Invoice
+                }
+              />
+            )}
           </div>
 
           <div className="screen-only">
@@ -972,6 +984,78 @@ export default function Invoices() {
                   const wa = `https://wa.me/?text=${encodeURIComponent(msg)}`;
                   const mail = `mailto:?subject=${encodeURIComponent(`Invoice ${inv.number} from ${Orgs[inv.org].name}`)}&body=${encodeURIComponent(msg)}`;
                   const key = `${inv.id || `inv-${inv.org}-${inv.number}-${i}`}-${inv.createdAt || i}`;
+
+                  async function handleSendPdf(platform: "whatsapp" | "email") {
+                    try {
+                      setPdfTargetInv(inv);
+                      await new Promise((r) => requestAnimationFrame(() => r(null)));
+                      const node = pdfRef.current;
+                      if (!node) throw new Error("PDF container not ready");
+
+                      const canvas = await html2canvas(node, {
+                        scale: 1.5,
+                        backgroundColor: "#ffffff",
+                      });
+
+                      const pdf = new jsPDF("p", "pt", "a4");
+                      const margin = 24;
+                      const pageWidth = pdf.internal.pageSize.getWidth();
+                      const pageHeight = pdf.internal.pageSize.getHeight();
+                      const imgWidth = pageWidth - margin * 2;
+
+                      const pxPerPt = canvas.width / imgWidth;
+                      const pageHeightPx = Math.floor((pageHeight - margin * 2) * pxPerPt);
+
+                      let offsetPx = 0;
+                      let pageIndex = 0;
+                      while (offsetPx < canvas.height) {
+                        const sliceHeightPx = Math.min(pageHeightPx, canvas.height - offsetPx);
+                        const sliceCanvas = document.createElement("canvas");
+                        sliceCanvas.width = canvas.width;
+                        sliceCanvas.height = sliceHeightPx;
+                        const ctx = sliceCanvas.getContext("2d");
+                        if (!ctx) throw new Error("Canvas context not available");
+                        ctx.fillStyle = "#ffffff";
+                        ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+                        ctx.drawImage(
+                          canvas,
+                          0,
+                          offsetPx,
+                          canvas.width,
+                          sliceHeightPx,
+                          0,
+                          0,
+                          sliceCanvas.width,
+                          sliceHeightPx,
+                        );
+                        const imgData = sliceCanvas.toDataURL("image/jpeg", 0.85);
+                        if (pageIndex > 0) pdf.addPage();
+                        const sliceHeightPt = sliceHeightPx / pxPerPt;
+                        pdf.addImage(imgData, "JPEG", margin, margin, imgWidth, sliceHeightPt);
+                        offsetPx += sliceHeightPx;
+                        pageIndex += 1;
+                      }
+
+                      const blob = pdf.output("blob");
+                      const safeName = invoicePdfFileName(inv);
+                      const url = URL.createObjectURL(blob);
+
+                      if (platform === "whatsapp") {
+                        const text = encodeURIComponent(`Invoice ${inv.number} from ${Orgs[inv.org].name}\n\n${msg}\n\nPDF: ${url}`);
+                        window.open(`https://wa.me/?text=${text}`, "_blank");
+                      } else {
+                        const mailLink = `mailto:?subject=${encodeURIComponent(`Invoice ${inv.number} from ${Orgs[inv.org].name}`)}&body=${encodeURIComponent(`${msg}\n\nPDF attached: ${url}`)}`;
+                        window.location.href = mailLink;
+                      }
+
+                      setTimeout(() => URL.revokeObjectURL(url), 60000);
+                      setPdfTargetInv(null);
+                    } catch (e: any) {
+                      console.error("PDF generation failed", e);
+                      alert("Failed to generate PDF");
+                    }
+                  }
+
                   async function handleRemove() {
                     if (!confirm(`Delete invoice ${inv.number}?`)) return;
                     try {
@@ -1006,13 +1090,13 @@ export default function Invoices() {
                         </Button>
                         <Button
                           variant="outline"
-                          onClick={() => window.open(wa, "_blank")}
+                          onClick={() => handleSendPdf("whatsapp")}
                         >
                           Send on WhatsApp
                         </Button>
                         <Button
                           variant="outline"
-                          onClick={() => (window.location.href = mail)}
+                          onClick={() => handleSendPdf("email")}
                         >
                           Send on Email
                         </Button>

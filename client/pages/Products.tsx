@@ -21,6 +21,7 @@ export default function Products() {
   const [hsn, setHsn] = useState("");
   const [unit, setUnit] = useState("");
   const [rate, setRate] = useState<number>(0);
+  const [editing, setEditing] = useState<string | null>(null);
 
   useEffect(() => {
     LocalAdapter.listProducts(org).then(setList);
@@ -28,9 +29,33 @@ export default function Products() {
 
   async function saveProduct() {
     if (!name) return;
-    const created = await LocalAdapter.saveProduct({ org, name, hsn, unit, rate, id: undefined });
-    setList((p)=>[created, ...p]);
+    const created = await LocalAdapter.saveProduct({ org, name, hsn, unit, rate, id: editing || undefined });
+    setList((p) => {
+      if (editing) {
+        return p.map((x) => (x.id === editing ? created : x));
+      }
+      return [created, ...p];
+    });
     setName(""); setHsn(""); setUnit(""); setRate(0);
+    setEditing(null);
+  }
+
+  function startEdit(p: Product) {
+    setEditing(p.id || null);
+    setName(p.name);
+    setHsn(p.hsn || "");
+    setUnit(p.unit || "");
+    setRate(p.rate);
+  }
+
+  async function deleteProduct(id: string) {
+    if (!confirm("Delete this product?")) return;
+    try {
+      await LocalAdapter.deleteProduct(id);
+      setList((p) => p.filter((x) => x.id !== id));
+    } catch (e) {
+      alert("Failed to delete");
+    }
   }
 
   return (
@@ -71,7 +96,12 @@ export default function Products() {
           </div>
 
           <div>
-            <Button onClick={saveProduct}>Save product</Button>
+            <Button onClick={saveProduct}>{editing ? "Update product" : "Save product"}</Button>
+            {editing && (
+              <Button variant="ghost" onClick={() => { setEditing(null); setName(""); setHsn(""); setUnit(""); setRate(0); }} className="ml-2">
+                Cancel
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -85,11 +115,19 @@ export default function Products() {
           {list.length===0 && <div className="text-sm text-muted-foreground">No products yet.</div>}
           {list.map((p, i)=> (
             <div key={`${p.id}-${p.createdAt}-${i}`} className="rounded-md border p-3 flex items-center justify-between">
-              <div className="text-sm">
+              <div className="text-sm flex-1">
                 <div className="font-medium">{p.name}</div>
                 <div className="text-muted-foreground">{p.unit || "Unit"}{p.unit?" · ":""}{p.hsn || "HSN"}</div>
               </div>
-              <div className="text-sm font-medium">₹{p.rate.toFixed(2)}</div>
+              <div className="flex items-center gap-2">
+                <div className="text-sm font-medium">₹{p.rate.toFixed(2)}</div>
+                <Button size="sm" variant="outline" onClick={() => startEdit(p)}>
+                  Edit
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => deleteProduct(p.id!)}>
+                  Delete
+                </Button>
+              </div>
             </div>
           ))}
         </CardContent>
