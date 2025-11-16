@@ -27,19 +27,32 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setSession(currentSession)
       setUser(currentSession?.user ?? null)
       setLoading(false)
-    }).catch(() => {
-      if (mounted) setLoading(false)
+    }).catch((err) => {
+      // Silently fail if Supabase is not available or network error
+      console.warn('Failed to get session:', err?.message)
+      if (mounted) {
+        setSession(null)
+        setUser(null)
+        setLoading(false)
+      }
     })
 
     // subscribe to changes
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession)
-      setUser(newSession?.user ?? null)
-    })
+    try {
+      const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+        setSession(newSession)
+        setUser(newSession?.user ?? null)
+      })
 
-    return () => {
-      mounted = false
-      listener?.subscription?.unsubscribe()
+      return () => {
+        mounted = false
+        listener?.subscription?.unsubscribe()
+      }
+    } catch (err) {
+      console.warn('Failed to subscribe to auth changes:', err)
+      return () => {
+        mounted = false
+      }
     }
   }, [])
 
