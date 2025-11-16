@@ -23,9 +23,9 @@ export default function InvoicePrint({ invoice }: { invoice: Invoice }) {
   };
 
   return (
-    <div className="print-a4 border border-black p-4 text-[14px] leading-tight text-black">
+    <div className="print-a4 p-4 text-[14px] leading-tight text-black" style={{ border: '1px solid #000' }}>
       <div className="text-center font-semibold">TAX INVOICE</div>
-      <div className="text-center text-[32px] font-extrabold tracking-wide text-[#4F81BD]">{profile.name}</div>
+      <div className="text-center text-[32px] font-extrabold tracking-wide" style={{ color: '#4F81BD' }}>{profile.name}</div>
       <div className="text-center uppercase text-[12px]">{profile.trade}</div>
       <div className="mt-1 flex items-center justify-center gap-6 text-[11px] pb-1 border-b border-black">
         <div>GSTIN NO. - {profile.gstin}</div>

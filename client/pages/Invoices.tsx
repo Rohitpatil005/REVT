@@ -880,7 +880,7 @@ export default function Invoices() {
                   {editing ? "Update & Save" : "Save Invoice"}
                 </Button>
                 {editing && (
-                  <Button variant="ghost" onClick={() => { setEditing(null); setForm({ org, name: "" }); setInvoiceNumber(""); }}>
+                  <Button variant="ghost" onClick={() => { setEditing(null); setCustomer({ org, name: "" }); setInvoiceNumber(""); }}>
                     New Invoice
                   </Button>
                 )}
@@ -904,8 +904,8 @@ export default function Invoices() {
                       alert("Please fill in customer name before printing");
                       return;
                     }
-                    setPdfTargetInv(editing);
-                    setTimeout(() => window.print(), 300);
+                    setPdfTargetInv(null);
+                    setTimeout(() => window.print(), 500);
                   }}>
                     Print Only
                   </Button>
@@ -931,7 +931,9 @@ export default function Invoices() {
           </div>
 
           <div className="print-only" style={{ padding: 0, margin: 0, background: "white" }}>
-            {editing ? (
+            {pdfTargetInv ? (
+              <InvoicePrint invoice={pdfTargetInv} />
+            ) : editing ? (
               <InvoicePrint invoice={editing} />
             ) : (
               <InvoicePrint

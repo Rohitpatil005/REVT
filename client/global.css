@@ -109,23 +109,69 @@
 }
 
 @layer components {
-  .print-a4 { width: 190mm; margin: 0 auto; font-family: Calibri, "Segoe UI", Arial, sans-serif; font-size: 14px; }
+  .print-a4 {
+    width: 190mm;
+    margin: 0 auto;
+    font-family: Calibri, "Segoe UI", Arial, sans-serif;
+    font-size: 14px;
+    background: white;
+    color: #000;
+    border: 1px solid #000;
+  }
   .print-only { display: none; }
   .screen-only { display: block; }
+
+  @media print {
+    body {
+      color: #000 !important;
+    }
+    .print-only {
+      display: block !important;
+    }
+  }
 }
 
 @media print {
   @page { size: A4; margin: 12mm; }
-  * { margin: 0 !important; padding: 0 !important; }
-  html, body { width: 100% !important; height: 100% !important; background: white !important; }
-  .print-only { display: block !important; width: 100% !important; }
+
+  html, body {
+    width: 100% !important;
+    height: auto !important;
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide screen elements */
   .screen-only { display: none !important; }
   header { display: none !important; }
-  main { display: none !important; }
-  footer { display: none !important; }
   nav { display: none !important; }
-  .print-a4 { display: block !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
-  /* Enforce bold borders for invoice tables */
-  .inv-tbl { border-collapse: collapse; }
-  .inv-tbl, .inv-tbl thead, .inv-tbl tbody, .inv-tbl tr, .inv-tbl th, .inv-tbl td { border: 1px solid #000 !important; }
+  footer { display: none !important; }
+
+  /* Show print elements */
+  .print-only {
+    display: block !important;
+    width: 100% !important;
+    background: white !important;
+  }
+
+  /* Invoice styling */
+  .print-a4 {
+    display: block !important;
+    width: 210mm !important;
+    background: white !important;
+    page-break-inside: avoid;
+    box-shadow: none !important;
+  }
+
+  /* Table styles */
+  .inv-tbl {
+    border-collapse: collapse !important;
+  }
+
+  .inv-tbl tr,
+  .inv-tbl th,
+  .inv-tbl td {
+    border: 1px solid #000 !important;
+  }
 }

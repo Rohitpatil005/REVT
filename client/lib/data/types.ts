@@ -83,11 +83,13 @@ export interface DataAdapter {
   saveCustomer(
     c: Omit<Customer, "id" | "createdAt"> & Partial<Pick<Customer, "id">>,
   ): Promise<Customer>;
+  deleteCustomer(org: Org, id: string): Promise<void>;
 
   listProducts(org: Org): Promise<Product[]>;
   saveProduct(
     p: Omit<Product, "id" | "createdAt"> & Partial<Pick<Product, "id">>,
   ): Promise<Product>;
+  deleteProduct(org: Org, id: string): Promise<void>;
 
   listInvoices(org: Org): Promise<Invoice[]>;
   saveInvoice(

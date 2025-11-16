@@ -51,7 +51,7 @@ export default function Products() {
   async function deleteProduct(id: string) {
     if (!confirm("Delete this product?")) return;
     try {
-      await LocalAdapter.deleteProduct(id);
+      await LocalAdapter.deleteProduct(org, id);
       setList((p) => p.filter((x) => x.id !== id));
     } catch (e) {
       alert("Failed to delete");

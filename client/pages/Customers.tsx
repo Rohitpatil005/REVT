@@ -57,7 +57,7 @@ export default function Customers() {
   async function deleteCustomer(id: string) {
     if (!confirm("Delete this customer?")) return;
     try {
-      await LocalAdapter.deleteCustomer(id);
+      await LocalAdapter.deleteCustomer(org, id);
       setList((l) => l.filter((x) => x.id !== id));
     } catch (e) {
       alert("Failed to delete");

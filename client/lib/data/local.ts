@@ -56,9 +56,17 @@ function withFyPrefix(n: NumberingSettings): string {
 
 export const LocalAdapter: DataAdapter = {
   async listCustomers(org) {
-    return read<Customer[]>(key(`${org}:customers`), []).sort(
-      (a, b) => b.createdAt - a.createdAt,
-    );
+    const all = read<Customer[]>(key(`${org}:customers`), []);
+    // Ensure all customers have IDs (migration for customers without IDs)
+    const withIds = all.map((c) => ({
+      ...c,
+      id: c.id || crypto.randomUUID(),
+    }));
+    // If any were missing IDs, save the fixed list back
+    if (withIds.some((c, i) => c.id !== all[i].id)) {
+      write(key(`${org}:customers`), withIds);
+    }
+    return withIds.sort((a, b) => b.createdAt - a.createdAt);
   },
   async saveCustomer(c) {
     const id = c.id ?? crypto.randomUUID();
@@ -73,9 +81,17 @@ export const LocalAdapter: DataAdapter = {
   },
 
   async listProducts(org) {
-    return read<Product[]>(key(`${org}:products`), []).sort(
-      (a, b) => b.createdAt - a.createdAt,
-    );
+    const all = read<Product[]>(key(`${org}:products`), []);
+    // Ensure all products have IDs (migration for products without IDs)
+    const withIds = all.map((p) => ({
+      ...p,
+      id: p.id || crypto.randomUUID(),
+    }));
+    // If any were missing IDs, save the fixed list back
+    if (withIds.some((p, i) => p.id !== all[i].id)) {
+      write(key(`${org}:products`), withIds);
+    }
+    return withIds.sort((a, b) => b.createdAt - a.createdAt);
   },
   async saveProduct(p) {
     const id = p.id ?? crypto.randomUUID();
@@ -168,5 +184,19 @@ export const LocalAdapter: DataAdapter = {
     const all = read<Invoice[]>(k, []);
     const next = all.filter((x) => x.id !== id);
     write(k, next);
+  },
+
+  async deleteCustomer(org, id) {
+    const k = key(`${org}:customers`);
+    const all = read<Customer[]>(k, []);
+    const filtered = all.filter((x) => x.id !== id);
+    write(k, filtered);
+  },
+
+  async deleteProduct(org, id) {
+    const k = key(`${org}:products`);
+    const all = read<Product[]>(k, []);
+    const filtered = all.filter((x) => x.id !== id);
+    write(k, filtered);
   },
 };
