@@ -304,7 +304,7 @@ export default function Invoices() {
     setPdfTargetInv(null);
   }
 
-  async function generateAndSavePdfLocally(inv: Invoice) {
+  async function generateAndSavePdfLocally(inv: Invoice): Promise<string | null> {
     setPdfTargetInv(inv);
     await new Promise((r) => requestAnimationFrame(() => r(null)));
     const node = pdfRef.current;
@@ -358,13 +358,17 @@ export default function Invoices() {
     const safeName = invoicePdfFileName(inv);
     const file = new File([blob], safeName, { type: "application/pdf" });
 
+    let result: string | null = null;
     try {
-      await savePdfToAppFolder(inv.org, file, safeName);
+      result = await savePdfToAppFolder(inv.org, file, safeName);
     } catch (e) {
       console.error("Local save failed", e);
+      throw e;
+    } finally {
+      setPdfTargetInv(null);
     }
 
-    setPdfTargetInv(null);
+    return result;
   }
 
   async function saveInvoice(autoUploadPdf: boolean = true): Promise<Invoice | undefined> {
@@ -414,11 +418,19 @@ export default function Invoices() {
       }
     } else {
       try {
-        await generateAndSavePdfLocally(inv);
-        toast({
-          title: "Success",
-          description: "Invoice saved locally to Invoice " + (inv.org === "rohit" ? "RE" : "VT"),
-        });
+        const result = await generateAndSavePdfLocally(inv);
+        if (result) {
+          toast({
+            title: "Success",
+            description: "Invoice saved locally to Invoice " + (inv.org === "rohit" ? "RE" : "VT"),
+          });
+        } else {
+          toast({
+            title: "Error",
+            description: "App is not running in Electron. Cannot save to local folder.",
+            variant: "destructive",
+          });
+        }
       } catch (e: any) {
         console.error("PDF generation/local save failed", e);
         toast({
