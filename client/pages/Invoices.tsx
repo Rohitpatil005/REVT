@@ -25,11 +25,10 @@ import { Orgs } from "@/lib/orgs";
 import InvoicePrint from "@/components/invoice/InvoicePrint";
 import { useAuthContext } from "@/hooks/SupabaseAuthProvider";
 import supabase from "../../utils/supabase";
-import { uploadInvoicePdf } from "../../utils/supabaseStorage";
+import { uploadInvoicePdf, removeFile, getPublicUrl } from "../../utils/supabaseStorage";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { invoicePdfFileName } from "@/lib/fileName";
-import { removeFile } from "../../utils/supabaseStorage";
 import { savePdfToAppFolder } from "@/utils/nativeBridge";
 import {
   queueUpload,
@@ -1043,8 +1042,16 @@ export default function Invoices() {
                       const url = URL.createObjectURL(blob);
 
                       if (platform === "whatsapp") {
-                        const text = encodeURIComponent(`Invoice ${inv.number} from ${Orgs[inv.org].name}\n\n${msg}\n\nPDF: ${url}`);
-                        window.open(`https://wa.me/?text=${text}`, "_blank");
+                        try {
+                          const pdfFile = new File([blob], safeName, { type: "application/pdf" });
+                          await uploadInvoicePdf(inv.org, safeName, pdfFile);
+                          const publicUrl = getPublicUrl(inv.org, safeName);
+                          const text = encodeURIComponent(`${msg}\n\n📄 Invoice PDF: ${publicUrl}`);
+                          window.open(`https://wa.me/?text=${text}`, "_blank");
+                        } catch (uploadError: any) {
+                          console.error("Failed to upload PDF to Supabase", uploadError);
+                          alert("Failed to upload PDF. Please try again.");
+                        }
                       } else {
                         const mailLink = `mailto:?subject=${encodeURIComponent(`Invoice ${inv.number} from ${Orgs[inv.org].name}`)}&body=${encodeURIComponent(`${msg}\n\nPDF attached: ${url}`)}`;
                         window.location.href = mailLink;
