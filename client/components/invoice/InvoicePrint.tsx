@@ -5,7 +5,7 @@ import { amountToWordsIndian } from "@/lib/amountToWords";
 export default function InvoicePrint({ invoice }: { invoice: Invoice }) {
   const org: Org = invoice.org;
   const profile = Orgs[org];
-  const grandBeforeRound = (invoice.totals.total + (invoice.freight ?? 0));
+  const grandBeforeRound = invoice.totals.total;
   const roundOff = Math.round(grandBeforeRound) - grandBeforeRound;
   const grand = grandBeforeRound + roundOff;
   const ship = invoice.shipping ?? invoice.customer;
