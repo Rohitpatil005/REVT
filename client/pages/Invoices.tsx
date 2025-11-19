@@ -24,6 +24,7 @@ import {
 import { Orgs } from "@/lib/orgs";
 import InvoicePrint from "@/components/invoice/InvoicePrint";
 import { useAuthContext } from "@/hooks/SupabaseAuthProvider";
+import { useToast } from "@/hooks/use-toast";
 import supabase from "../../utils/supabase";
 import { uploadInvoicePdf, removeFile, getPublicUrl } from "../../utils/supabaseStorage";
 import html2canvas from "html2canvas";
@@ -46,6 +47,7 @@ export default function Invoices() {
   const org = useOrg();
   const nav = useNavigate();
   const { user } = useAuthContext();
+  const { toast } = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [list, setList] = useState<Invoice[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -302,8 +304,71 @@ export default function Invoices() {
     setPdfTargetInv(null);
   }
 
-  async function saveInvoice(autoUploadPdf: boolean = true) {
-    if (!customer?.name || items.length === 0) return;
+  async function generateAndSavePdfLocally(inv: Invoice) {
+    setPdfTargetInv(inv);
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    const node = pdfRef.current;
+    if (!node) throw new Error("PDF container not ready");
+
+    const canvas = await html2canvas(node, {
+      scale: 1.5,
+      backgroundColor: "#ffffff",
+    });
+
+    const pdf = new jsPDF("p", "pt", "a4");
+    const margin = 24;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth - margin * 2;
+
+    const pxPerPt = canvas.width / imgWidth;
+    const pageHeightPx = Math.floor((pageHeight - margin * 2) * pxPerPt);
+
+    let offsetPx = 0;
+    let pageIndex = 0;
+    while (offsetPx < canvas.height) {
+      const sliceHeightPx = Math.min(pageHeightPx, canvas.height - offsetPx);
+      const sliceCanvas = document.createElement("canvas");
+      sliceCanvas.width = canvas.width;
+      sliceCanvas.height = sliceHeightPx;
+      const ctx = sliceCanvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas context not available");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+      ctx.drawImage(
+        canvas,
+        0,
+        offsetPx,
+        canvas.width,
+        sliceHeightPx,
+        0,
+        0,
+        sliceCanvas.width,
+        sliceHeightPx,
+      );
+      const imgData = sliceCanvas.toDataURL("image/jpeg", 0.85);
+      if (pageIndex > 0) pdf.addPage();
+      const sliceHeightPt = sliceHeightPx / pxPerPt;
+      pdf.addImage(imgData, "JPEG", margin, margin, imgWidth, sliceHeightPt);
+      offsetPx += sliceHeightPx;
+      pageIndex += 1;
+    }
+
+    const blob = pdf.output("blob");
+    const safeName = invoicePdfFileName(inv);
+    const file = new File([blob], safeName, { type: "application/pdf" });
+
+    try {
+      await savePdfToAppFolder(inv.org, file, safeName);
+    } catch (e) {
+      console.error("Local save failed", e);
+    }
+
+    setPdfTargetInv(null);
+  }
+
+  async function saveInvoice(autoUploadPdf: boolean = true): Promise<Invoice | undefined> {
+    if (!customer?.name || items.length === 0) return undefined;
     const shipStateCombined = shipCode
       ? `${shipTo.state ?? ""} - ${shipCode}`
       : (shipTo.state ?? "");
@@ -341,6 +406,26 @@ export default function Invoices() {
         await generateAndUploadPdf(inv);
       } catch (e: any) {
         console.error("PDF generation/upload failed", e);
+        toast({
+          title: "Error",
+          description: "Failed to generate/upload PDF: " + e.message,
+          variant: "destructive",
+        });
+      }
+    } else {
+      try {
+        await generateAndSavePdfLocally(inv);
+        toast({
+          title: "Success",
+          description: "Invoice saved locally to Invoice " + (inv.org === "rohit" ? "RE" : "VT"),
+        });
+      } catch (e: any) {
+        console.error("PDF generation/local save failed", e);
+        toast({
+          title: "Error",
+          description: "Failed to save PDF locally: " + e.message,
+          variant: "destructive",
+        });
       }
     }
 
@@ -361,6 +446,7 @@ export default function Invoices() {
       setInvoiceNumber(suggested);
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
+    return inv;
   }
 
   async function quickAddCustomer() {
@@ -890,10 +976,12 @@ export default function Invoices() {
                   <Button
                     variant="outline"
                     onClick={async () => {
-                      await saveInvoice(true);
-                      setPdfTargetInv(editing);
-                      await new Promise(resolve => setTimeout(resolve, 1000));
-                      window.print();
+                      const savedInv = await saveInvoice(true);
+                      if (savedInv) {
+                        setPdfTargetInv(savedInv);
+                        await new Promise(resolve => setTimeout(resolve, 2500));
+                        window.print();
+                      }
                     }}
                   >
                     Print (with Cloud Upload)
@@ -904,7 +992,7 @@ export default function Invoices() {
                       return;
                     }
                     setPdfTargetInv(null);
-                    setTimeout(() => window.print(), 500);
+                    setTimeout(() => window.print(), 1500);
                   }}>
                     Print Only
                   </Button>

@@ -19,14 +19,26 @@ export async function savePdfToAppFolder(
   file: File,
   fileName: string,
 ): Promise<string | null> {
-  if (isElectron() && window.electron?.savePdf) {
-    const buf = await file.arrayBuffer();
-    const res = await window.electron.savePdf(org, fileName, buf);
-    return res.fullPath;
+  if (!isElectron()) {
+    console.warn("Not running in Electron app - PDF cannot be saved to local folder");
+    return null;
   }
-  // In browser, don't show download dialog - just save in IndexedDB or memory
-  // User can access it via WhatsApp/Email buttons instead
-  return null;
+
+  if (!window.electron?.savePdf) {
+    console.error("window.electron.savePdf is not available");
+    throw new Error("Electron bridge not initialized");
+  }
+
+  try {
+    const buf = await file.arrayBuffer();
+    console.log(`Attempting to save PDF: ${fileName} to org: ${org}`);
+    const res = await window.electron.savePdf(org, fileName, buf);
+    console.log(`PDF saved successfully at: ${res.fullPath}`);
+    return res.fullPath;
+  } catch (error) {
+    console.error("Failed to save PDF:", error);
+    throw error;
+  }
 }
 
 export async function readFileFromPath(fullPath: string): Promise<Blob | null> {
