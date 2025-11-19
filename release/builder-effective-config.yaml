@@ -1,19 +1,34 @@
 directories:
   output: release
-  buildResources: build
+  buildResources: public
 appId: com.rohit.billing
 productName: Rohit Billing Suite
 files:
   - filter:
       - dist/spa/**
       - electron/**
+      - public/**
 extraMetadata:
   main: electron/main.mjs
 win:
   target:
+    - target: nsis
+      arch:
+        - x64
     - target: appx
       arch:
         - x64
+  certificateFile: null
+  certificatePassword: <stripped sensitive data>
+  signingHashAlgorithms:
+    - sha256
+  icon: public/logo.svg
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Rohit Billing Suite
 appx:
   displayName: Rohit Billing Suite
   identityName: com.rohit.billing

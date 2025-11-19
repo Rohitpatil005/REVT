@@ -22,7 +22,7 @@ export default function MainLayout({ children }: PropsWithChildren) {
       <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-md bg-gradient-to-br from-primary to-accent shadow" />
+            <img src="/logo.svg" alt="REVT Logo" className="h-8 w-8" />
             <div className="flex flex-col leading-tight">
               <span className="text-sm text-muted-foreground">Rohit Billing Suite</span>
               <span className="text-base font-semibold">Invoices & Reports</span>

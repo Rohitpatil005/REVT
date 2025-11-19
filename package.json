@@ -121,23 +121,38 @@
     "productName": "Rohit Billing Suite",
     "files": [
       "dist/spa/**",
-      "electron/**"
+      "electron/**",
+      "public/**"
     ],
     "extraMetadata": {
       "main": "electron/main.mjs"
     },
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "public"
     },
     "win": {
       "target": [
         {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
           "target": "appx",
-          "arch": [
-            "x64"
-          ]
+          "arch": ["x64"]
         }
-      ]
+      ],
+      "certificateFile": null,
+      "certificatePassword": null,
+      "signingHashAlgorithms": ["sha256"],
+      "icon": "public/logo.svg"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Rohit Billing Suite"
     },
     "appx": {
       "displayName": "Rohit Billing Suite",

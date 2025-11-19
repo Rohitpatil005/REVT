@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 
 function getOrgFolder(org) {
   const base = path.join(os.homedir(), "Documents");
-  if (org === "rohit") return path.join(base, "Invoice Re");
+  if (org === "rohit") return path.join(base, "Invoice RE");
   if (org === "vighneshwar") return path.join(base, "Invoice VT");
   return path.join(base, "Invoices");
 }
