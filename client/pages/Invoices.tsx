@@ -875,21 +875,19 @@ export default function Invoices() {
                     New Invoice
                   </Button>
                 )}
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      if (!customer.name) {
-                        alert("Please fill in customer name before printing");
-                        return;
-                      }
-                      setPdfTargetInv(null);
-                      setTimeout(() => window.print(), 1500);
-                    }}
-                  >
-                    Print
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (!customer.name) {
+                      alert("Please fill in customer name before printing");
+                      return;
+                    }
+                    setPdfTargetInv(null);
+                    setTimeout(() => window.print(), 1500);
+                  }}
+                >
+                  Print
+                </Button>
               </div>
             </div>
           </div>

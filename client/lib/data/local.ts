@@ -106,9 +106,21 @@ export const LocalAdapter: DataAdapter = {
   },
 
   async listInvoices(org) {
-    return read<Invoice[]>(key(`${org}:invoices`), []).sort(
-      (a, b) => b.createdAt - a.createdAt,
-    );
+    const all = read<Invoice[]>(key(`${org}:invoices`), []);
+    // Deduplicate by ID, keeping the latest version of each invoice
+    const seen = new Set<string>();
+    const deduped = all
+      .sort((a, b) => b.createdAt - a.createdAt) // Sort by newest first
+      .filter((inv) => {
+        if (seen.has(inv.id)) return false; // Skip if we've already seen this ID
+        seen.add(inv.id);
+        return true;
+      });
+    // If deduplication removed items, save the cleaned list back
+    if (deduped.length !== all.length) {
+      write(key(`${org}:invoices`), deduped);
+    }
+    return deduped;
   },
   async saveInvoice(i) {
     const k = key(`${i.org}:invoices`);

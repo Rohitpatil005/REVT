@@ -11,6 +11,7 @@ import {
 import { LocalAdapter } from "@/lib/data/local";
 import { Invoice, Org, INR } from "@/lib/data/types";
 import { Orgs } from "@/lib/orgs";
+import { exportGSTSalesAsExcel } from "@/lib/gstExport";
 
 
 
@@ -59,9 +60,17 @@ export default function Reports() {
         </Button>
       </div>
       <Card>
-        <CardHeader>
-          <CardTitle>Sales by month</CardTitle>
-          <CardDescription>Totals per month</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Sales by month</CardTitle>
+            <CardDescription>Totals per month</CardDescription>
+          </div>
+          <Button
+            onClick={() => exportGSTSalesAsExcel(list, org)}
+            disabled={list.length === 0}
+          >
+            Export GST Sales
+          </Button>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto rounded-md border">
