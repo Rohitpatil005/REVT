@@ -12,26 +12,13 @@ extraMetadata:
   main: electron/main.mjs
 win:
   target:
-    - target: nsis
+    - target: portable
       arch:
         - x64
-    - target: appx
-      arch:
-        - x64
-  certificateFile: null
-  certificatePassword: <stripped sensitive data>
-  signingHashAlgorithms:
-    - sha256
-  icon: public/logo.png
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Rohit Billing Suite
-appx:
-  displayName: Rohit Billing Suite
-  identityName: com.rohit.billing
-  backgroundColor: '#ffffff'
-  publisher: CN=Rohit
 electronVersion: 31.7.7
