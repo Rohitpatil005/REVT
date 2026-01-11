@@ -20,15 +20,11 @@ async function ensureDir(dir) {
 }
 
 async function createWindow() {
-  // Try PNG first, fallback to SVG
-  let iconPath = path.join(__dirname, "..", "public", "logo.png");
-  if (!fsSync.existsSync(iconPath)) {
-    iconPath = path.join(__dirname, "..", "public", "logo.svg");
-  }
+  const iconPath = path.join(__dirname, "..", "public", "logo.png");
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
-    icon: fsSync.existsSync(iconPath) ? iconPath : undefined,
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, "preload.mjs"),
       contextIsolation: true,

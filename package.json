@@ -20,9 +20,9 @@
     "build:server": "vite build --config vite.config.server.ts",
     "start": "node dist/server/node-build.mjs",
     "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
-    "electron:build": "npm run build && electron-builder -w portable",
+    "electron:build": "npm run build && electron-builder -w appx",
     "electron:build:nsis": "npm run build && electron-builder -w nsis",
-    "electron:build:all": "npm run build && electron-builder -w portable,nsis",
+    "electron:build:all": "npm run build && electron-builder -w appx,nsis",
     "test": "vitest --run",
     "format.fix": "prettier --write .",
     "typecheck": "tsc"
@@ -134,12 +134,24 @@
     "win": {
       "target": [
         {
-          "target": "portable",
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "appx",
           "arch": [
             "x64"
           ]
         }
-      ]
+      ],
+      "certificateFile": null,
+      "certificatePassword": null,
+      "signingHashAlgorithms": [
+        "sha256"
+      ],
+      "icon": "public/logo.png"
     },
     "nsis": {
       "oneClick": false,
@@ -147,6 +159,12 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Rohit Billing Suite"
+    },
+    "appx": {
+      "displayName": "Rohit Billing Suite",
+      "identityName": "com.rohit.billing",
+      "backgroundColor": "#ffffff",
+      "publisher": "CN=Rohit"
     }
   }
 }
