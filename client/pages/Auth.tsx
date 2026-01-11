@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useAuthContext } from "@/hooks/SupabaseAuthProvider";
+import { useAuthContext } from "@/hooks/FirebaseAuthProvider";
 
 const orgDisplay = (org: string | null) =>
   org === "vighneshwar"

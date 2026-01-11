@@ -2,7 +2,7 @@ import { PropsWithChildren } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useAuthContext } from "@/hooks/SupabaseAuthProvider";
+import { useAuthContext } from "@/hooks/FirebaseAuthProvider";
 
 const navItems = [
   { to: "/", label: "Home" },

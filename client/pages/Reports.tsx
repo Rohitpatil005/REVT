@@ -11,8 +11,8 @@ import {
 import { LocalAdapter } from "@/lib/data/local";
 import { Invoice, Org, INR } from "@/lib/data/types";
 import { Orgs } from "@/lib/orgs";
-import { removeFile } from "../../utils/supabaseStorage";
-import { invoicePdfFileName } from "@/lib/fileName";
+
+
 
 function useOrg(): Org {
   const [p] = useSearchParams();
@@ -113,10 +113,6 @@ export default function Reports() {
               if (!confirm(`Delete invoice ${inv.number}?`)) return;
               try {
                 await LocalAdapter.deleteInvoice(inv.org, inv.id);
-                const fileName = invoicePdfFileName(inv);
-                try {
-                  await removeFile(inv.org, fileName);
-                } catch {}
                 setList((l) => l.filter((x) => x.id !== inv.id));
               } catch (e: any) {
                 alert(e?.message || "Failed to delete");

@@ -6,9 +6,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-  SupabaseAuthProvider,
+  FirebaseAuthProvider,
   useAuthContext,
-} from "./hooks/SupabaseAuthProvider";
+} from "./hooks/FirebaseAuthProvider";
 import {
   BrowserRouter,
   Routes,
@@ -39,7 +39,7 @@ function RequireAuth({ children }: { children: JSX.Element }) {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <SupabaseAuthProvider>
+    <FirebaseAuthProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -102,7 +102,7 @@ const App = () => (
           </MainLayout>
         </BrowserRouter>
       </TooltipProvider>
-    </SupabaseAuthProvider>
+    </FirebaseAuthProvider>
   </QueryClientProvider>
 );
 

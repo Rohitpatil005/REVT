@@ -1,138 +1,24 @@
 import React, { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useAuthContext } from "@/hooks/SupabaseAuthProvider";
-import {
-  uploadInvoicePdf,
-  listInvoices,
-  getPublicUrl,
-  removeFile,
-} from "../../utils/supabaseStorage";
+import { useAuthContext } from "@/hooks/FirebaseAuthProvider";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export default function StorageTest() {
   const [params] = useSearchParams();
-  const org = params.get("org") ?? "rohit";
   const { user } = useAuthContext();
-
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [items, setItems] = useState<any[]>([]);
-
-  async function refreshList() {
-    try {
-      const data = await listInvoices(org);
-      setItems(data ?? []);
-    } catch (e: any) {
-      alert(e.message || "Failed to list files");
-    }
-  }
-
-  useEffect(() => {
-    refreshList();
-  }, [org]);
-
-  async function handleUpload() {
-    if (!selectedFile) return alert("Select a PDF first");
-    setUploading(true);
-    try {
-      const randomId =
-        typeof crypto !== "undefined" && (crypto as any).randomUUID
-          ? (crypto as any).randomUUID()
-          : String(Date.now());
-      const fileName = selectedFile.name?.toLowerCase().endsWith(".pdf")
-        ? selectedFile.name
-        : `${randomId}.pdf`;
-      await uploadInvoicePdf(org, fileName, selectedFile);
-      await refreshList();
-      alert("Uploaded");
-    } catch (e: any) {
-      alert(e.message || "Upload failed");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function handleRemove(name: string) {
-    try {
-      // name is the file name relative to prefix
-      await removeFile(org, name);
-      await refreshList();
-    } catch (e: any) {
-      alert(e.message || "Delete failed");
-    }
-  }
 
   return (
     <div className="max-w-3xl mx-auto p-4">
-      <h2 className="text-xl font-semibold">Storage test</h2>
-      <p className="text-sm text-muted-foreground">
-        Signed in as: {user?.email ?? "unknown"}
-      </p>
-      <p className="text-sm">
-        Org: <strong>{org}</strong>
-      </p>
-
-      <div className="mt-4 grid gap-2 md:grid-cols-3">
-        <Input
-          type="file"
-          accept="application/pdf"
-          onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
-        />
-        <div className="md:col-span-2 flex gap-2">
-          <Button onClick={handleUpload} disabled={uploading || !selectedFile}>
-            {uploading ? "Uploading…" : "Upload PDF"}
-          </Button>
-          <Button variant="outline" onClick={refreshList}>
-            Refresh
-          </Button>
-        </div>
-      </div>
-
-      <div className="mt-6">
-        <h3 className="font-medium">Files</h3>
-        {items.length === 0 && (
-          <div className="text-sm text-muted-foreground">No files found</div>
-        )}
-        <ul className="mt-2 space-y-2">
-          {items.map((it: any) => {
-            // supabase returns name relative to prefix when listing with prefix
-            const name = it.name || it.id || "";
-            const publicUrl = getPublicUrl(org, name);
-            return (
-              <li
-                key={name}
-                className="flex items-center justify-between border p-2 rounded"
-              >
-                <div>
-                  <div className="font-medium">{name}</div>
-                  <a
-                    className="text-xs text-blue-600"
-                    href={publicUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Open public URL
-                  </a>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    onClick={() => window.open(publicUrl, "_blank")}
-                  >
-                    Open
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => handleRemove(name)}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <h2 className="text-xl font-semibold text-amber-900">Cloud Storage Disabled</h2>
+        <p className="text-sm text-amber-800 mt-2">
+          Cloud storage functionality has been disabled. The app now uses Firebase Authentication and Firestore Database only.
+        </p>
+        <p className="text-sm text-amber-800 mt-2">
+          Signed in as: <strong>{user?.email ?? "unknown"}</strong>
+        </p>
       </div>
     </div>
   );

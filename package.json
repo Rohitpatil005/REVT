@@ -14,24 +14,23 @@
     ]
   },
   "scripts": {
-  "dev": "vite",
-  "build": "npm run build:client && npm run build:server",
-  "build:client": "vite build",
-  "build:server": "vite build --config vite.config.server.ts",
-  "start": "node dist/server/node-build.mjs",
-  "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
-  "electron:build": "npm run build && electron-builder -w appx",
-  "electron:build:nsis": "npm run build && electron-builder -w nsis",  
-  "electron:build:all": "npm run build && electron-builder -w appx,nsis",
-  "test": "vitest --run",
-  "format.fix": "prettier --write .",
-  "typecheck": "tsc"
-}
-,
+    "dev": "vite",
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "vite build",
+    "build:server": "vite build --config vite.config.server.ts",
+    "start": "node dist/server/node-build.mjs",
+    "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
+    "electron:build": "npm run build && electron-builder -w appx",
+    "electron:build:nsis": "npm run build && electron-builder -w nsis",
+    "electron:build:all": "npm run build && electron-builder -w appx,nsis",
+    "test": "vitest --run",
+    "format.fix": "prettier --write .",
+    "typecheck": "tsc"
+  },
   "dependencies": {
-    "@supabase/supabase-js": "^2.47.10",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
+    "firebase": "^11.10.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.2",
     "zod": "^3.25.76"
@@ -135,16 +134,22 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "appx",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "certificateFile": null,
       "certificatePassword": null,
-      "signingHashAlgorithms": ["sha256"],
+      "signingHashAlgorithms": [
+        "sha256"
+      ],
       "icon": "public/logo.svg"
     },
     "nsis": {

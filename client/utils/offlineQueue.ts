@@ -1,6 +1,3 @@
-import { readFileFromPath, isElectron } from "./nativeBridge";
-import { uploadInvoicePdf } from "../../utils/supabaseStorage";
-
 export type QueuedUpload = {
   org: string;
   fileName: string;
@@ -28,24 +25,8 @@ export function queueUpload(item: Omit<QueuedUpload, "createdAt">) {
 }
 
 export async function retryQueuedUploads(): Promise<number> {
-  let list = read();
-  let success = 0;
-  const next: QueuedUpload[] = [];
-  for (const it of list) {
-    try {
-      let blob: Blob | null = null;
-      if (it.localPath && isElectron())
-        blob = await readFileFromPath(it.localPath);
-      if (!blob) throw new Error("Cannot read local file");
-      const file = new File([blob], it.fileName, { type: "application/pdf" });
-      await uploadInvoicePdf(it.org, it.fileName, file);
-      success += 1;
-    } catch {
-      next.push(it); // keep in queue
-    }
-  }
-  write(next);
-  return success;
+  // Storage functionality has been removed - this is a no-op
+  return 0;
 }
 
 export function onOnlineRetry() {

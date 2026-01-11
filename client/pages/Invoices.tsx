@@ -23,19 +23,14 @@ import {
 } from "@/lib/data/types";
 import { Orgs } from "@/lib/orgs";
 import InvoicePrint from "@/components/invoice/InvoicePrint";
-import { useAuthContext } from "@/hooks/SupabaseAuthProvider";
+import { useAuthContext } from "@/hooks/FirebaseAuthProvider";
 import { useToast } from "@/hooks/use-toast";
-import supabase from "../../utils/supabase";
-import { uploadInvoicePdf, removeFile, getPublicUrl } from "../../utils/supabaseStorage";
+import { saveInvoiceMetadata } from "../../utils/firestore";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { invoicePdfFileName } from "@/lib/fileName";
 import { savePdfToAppFolder } from "@/utils/nativeBridge";
-import {
-  queueUpload,
-  retryQueuedUploads,
-  onOnlineRetry,
-} from "@/utils/offlineQueue";
+
 
 function useOrg(): Org {
   const [params] = useSearchParams();
@@ -56,7 +51,6 @@ export default function Invoices() {
   const [pdfTargetInv, setPdfTargetInv] = useState<Invoice | null>(null);
 
   useEffect(() => {
-    onOnlineRetry();
     LocalAdapter.listCustomers(org).then(setCustomers);
     LocalAdapter.listInvoices(org).then(setList);
     LocalAdapter.listProducts(org).then(setProducts);
@@ -216,93 +210,6 @@ export default function Invoices() {
     return false;
   }
 
-  async function generateAndUploadPdf(inv: Invoice) {
-    setPdfTargetInv(inv);
-    await new Promise((r) => requestAnimationFrame(() => r(null)));
-    const node = pdfRef.current;
-    if (!node) throw new Error("PDF container not ready");
-
-    // Render HTML to canvas at a moderate scale to reduce file size
-    const canvas = await html2canvas(node, {
-      scale: 1.5,
-      backgroundColor: "#ffffff",
-    });
-
-    const pdf = new jsPDF("p", "pt", "a4");
-    const margin = 24; // pts
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = pageWidth - margin * 2;
-
-    // Conversion between canvas px and PDF pts for the target width
-    const pxPerPt = canvas.width / imgWidth;
-    const pageHeightPx = Math.floor((pageHeight - margin * 2) * pxPerPt);
-
-    // Create multipage PDF by slicing the canvas per page
-    let offsetPx = 0;
-    let pageIndex = 0;
-    while (offsetPx < canvas.height) {
-      const sliceHeightPx = Math.min(pageHeightPx, canvas.height - offsetPx);
-      const sliceCanvas = document.createElement("canvas");
-      sliceCanvas.width = canvas.width;
-      sliceCanvas.height = sliceHeightPx;
-      const ctx = sliceCanvas.getContext("2d");
-      if (!ctx) throw new Error("Canvas context not available");
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-      ctx.drawImage(
-        canvas,
-        0,
-        offsetPx,
-        canvas.width,
-        sliceHeightPx,
-        0,
-        0,
-        sliceCanvas.width,
-        sliceHeightPx,
-      );
-      const imgData = sliceCanvas.toDataURL("image/jpeg", 0.85);
-      if (pageIndex > 0) pdf.addPage();
-      const sliceHeightPt = sliceHeightPx / pxPerPt;
-      pdf.addImage(imgData, "JPEG", margin, margin, imgWidth, sliceHeightPt);
-      offsetPx += sliceHeightPx;
-      pageIndex += 1;
-    }
-
-    const blob = pdf.output("blob");
-    const safeName = invoicePdfFileName(inv);
-    const file = new File([blob], safeName, { type: "application/pdf" });
-
-    // Save locally (Electron folder or browser download)
-    let localPath: string | null = null;
-    try {
-      localPath = await savePdfToAppFolder(inv.org, file, safeName);
-    } catch (e) {
-      console.error("Local save failed", e);
-    }
-
-    // Try cloud upload; if offline or failed, queue for later
-    try {
-      if (!navigator.onLine) throw new Error("offline");
-      await uploadInvoicePdf(inv.org, safeName, file);
-      if (user?.id) {
-        await supabase.from("invoices").insert({
-          org_id: inv.org,
-          user_id: user.id,
-          storage_path: `${inv.org}/invoices/${safeName}`,
-          filename: safeName,
-          total: inv.totals.total,
-        });
-      }
-    } catch (e) {
-      queueUpload({ org: inv.org, fileName: safeName, localPath });
-    }
-
-    // Opportunistically retry any queued uploads
-    retryQueuedUploads().catch(() => {});
-
-    setPdfTargetInv(null);
-  }
 
   async function generateAndSavePdfLocally(inv: Invoice): Promise<string | null> {
     setPdfTargetInv(inv);
@@ -371,7 +278,7 @@ export default function Invoices() {
     return result;
   }
 
-  async function saveInvoice(autoUploadPdf: boolean = true): Promise<Invoice | undefined> {
+  async function saveInvoice(): Promise<Invoice | undefined> {
     if (!customer?.name || items.length === 0) return undefined;
     const shipStateCombined = shipCode
       ? `${shipTo.state ?? ""} - ${shipCode}`
@@ -405,40 +312,27 @@ export default function Invoices() {
       meta,
     });
 
-    if (autoUploadPdf) {
-      try {
-        await generateAndUploadPdf(inv);
-      } catch (e: any) {
-        console.error("PDF generation/upload failed", e);
+    try {
+      const result = await generateAndSavePdfLocally(inv);
+      if (result) {
+        toast({
+          title: "Success",
+          description: "Invoice saved locally to Invoice " + (inv.org === "rohit" ? "RE" : "VT"),
+        });
+      } else {
         toast({
           title: "Error",
-          description: "Failed to generate/upload PDF: " + e.message,
+          description: "App is not running in Electron. Cannot save to local folder.",
           variant: "destructive",
         });
       }
-    } else {
-      try {
-        const result = await generateAndSavePdfLocally(inv);
-        if (result) {
-          toast({
-            title: "Success",
-            description: "Invoice saved locally to Invoice " + (inv.org === "rohit" ? "RE" : "VT"),
-          });
-        } else {
-          toast({
-            title: "Error",
-            description: "App is not running in Electron. Cannot save to local folder.",
-            variant: "destructive",
-          });
-        }
-      } catch (e: any) {
-        console.error("PDF generation/local save failed", e);
-        toast({
-          title: "Error",
-          description: "Failed to save PDF locally: " + e.message,
-          variant: "destructive",
-        });
-      }
+    } catch (e: any) {
+      console.error("PDF generation/local save failed", e);
+      toast({
+        title: "Error",
+        description: "Failed to save PDF locally: " + e.message,
+        variant: "destructive",
+      });
     }
 
     setList((l) => {
@@ -973,7 +867,7 @@ export default function Invoices() {
                     />
                   </label>
                 </div>
-                <Button onClick={() => saveInvoice(true)}>
+                <Button onClick={() => saveInvoice()}>
                   {editing ? "Update & Save" : "Save Invoice"}
                 </Button>
                 {editing && (
@@ -982,31 +876,18 @@ export default function Invoices() {
                   </Button>
                 )}
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => saveInvoice(false)}>
-                    Save (No Cloud)
-                  </Button>
                   <Button
                     variant="outline"
-                    onClick={async () => {
-                      const savedInv = await saveInvoice(true);
-                      if (savedInv) {
-                        setPdfTargetInv(savedInv);
-                        await new Promise(resolve => setTimeout(resolve, 2500));
-                        window.print();
+                    onClick={() => {
+                      if (!customer.name) {
+                        alert("Please fill in customer name before printing");
+                        return;
                       }
+                      setPdfTargetInv(null);
+                      setTimeout(() => window.print(), 1500);
                     }}
                   >
-                    Print (with Cloud Upload)
-                  </Button>
-                  <Button variant="outline" onClick={() => {
-                    if (!customer.name) {
-                      alert("Please fill in customer name before printing");
-                      return;
-                    }
-                    setPdfTargetInv(null);
-                    setTimeout(() => window.print(), 1500);
-                  }}>
-                    Print Only
+                    Print
                   </Button>
                 </div>
               </div>
@@ -1081,98 +962,12 @@ export default function Invoices() {
               <label className="text-sm">Recent invoices</label>
               <div className="grid gap-2">
                 {list.slice(0, 10).map((inv, i) => {
-                  const msg = `Invoice ${inv.number}\nDate: ${new Date(inv.date).toLocaleDateString()}\nTo: ${inv.customer.name}\nTotal: ${INR(inv.totals.total)}\nFrom: ${Orgs[inv.org].name}`;
-                  const wa = `https://wa.me/?text=${encodeURIComponent(msg)}`;
-                  const mail = `mailto:?subject=${encodeURIComponent(`Invoice ${inv.number} from ${Orgs[inv.org].name}`)}&body=${encodeURIComponent(msg)}`;
                   const key = `${inv.id || `inv-${inv.org}-${inv.number}-${i}`}-${inv.createdAt || i}`;
-
-                  async function handleSendPdf(platform: "whatsapp" | "email") {
-                    try {
-                      setPdfTargetInv(inv);
-                      await new Promise((r) => requestAnimationFrame(() => r(null)));
-                      const node = pdfRef.current;
-                      if (!node) throw new Error("PDF container not ready");
-
-                      const canvas = await html2canvas(node, {
-                        scale: 1.5,
-                        backgroundColor: "#ffffff",
-                      });
-
-                      const pdf = new jsPDF("p", "pt", "a4");
-                      const margin = 24;
-                      const pageWidth = pdf.internal.pageSize.getWidth();
-                      const pageHeight = pdf.internal.pageSize.getHeight();
-                      const imgWidth = pageWidth - margin * 2;
-
-                      const pxPerPt = canvas.width / imgWidth;
-                      const pageHeightPx = Math.floor((pageHeight - margin * 2) * pxPerPt);
-
-                      let offsetPx = 0;
-                      let pageIndex = 0;
-                      while (offsetPx < canvas.height) {
-                        const sliceHeightPx = Math.min(pageHeightPx, canvas.height - offsetPx);
-                        const sliceCanvas = document.createElement("canvas");
-                        sliceCanvas.width = canvas.width;
-                        sliceCanvas.height = sliceHeightPx;
-                        const ctx = sliceCanvas.getContext("2d");
-                        if (!ctx) throw new Error("Canvas context not available");
-                        ctx.fillStyle = "#ffffff";
-                        ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-                        ctx.drawImage(
-                          canvas,
-                          0,
-                          offsetPx,
-                          canvas.width,
-                          sliceHeightPx,
-                          0,
-                          0,
-                          sliceCanvas.width,
-                          sliceHeightPx,
-                        );
-                        const imgData = sliceCanvas.toDataURL("image/jpeg", 0.85);
-                        if (pageIndex > 0) pdf.addPage();
-                        const sliceHeightPt = sliceHeightPx / pxPerPt;
-                        pdf.addImage(imgData, "JPEG", margin, margin, imgWidth, sliceHeightPt);
-                        offsetPx += sliceHeightPx;
-                        pageIndex += 1;
-                      }
-
-                      const blob = pdf.output("blob");
-                      const safeName = invoicePdfFileName(inv);
-                      const url = URL.createObjectURL(blob);
-
-                      if (platform === "whatsapp") {
-                        try {
-                          const pdfFile = new File([blob], safeName, { type: "application/pdf" });
-                          await uploadInvoicePdf(inv.org, safeName, pdfFile);
-                          const publicUrl = getPublicUrl(inv.org, safeName);
-                          const text = encodeURIComponent(`${msg}\n\n📄 Invoice PDF: ${publicUrl}`);
-                          window.open(`https://wa.me/?text=${text}`, "_blank");
-                        } catch (uploadError: any) {
-                          console.error("Failed to upload PDF to Supabase", uploadError);
-                          alert("Failed to upload PDF. Please try again.");
-                        }
-                      } else {
-                        const mailLink = `mailto:?subject=${encodeURIComponent(`Invoice ${inv.number} from ${Orgs[inv.org].name}`)}&body=${encodeURIComponent(`${msg}\n\nPDF attached: ${url}`)}`;
-                        window.location.href = mailLink;
-                      }
-
-                      setTimeout(() => URL.revokeObjectURL(url), 60000);
-                      setPdfTargetInv(null);
-                    } catch (e: any) {
-                      console.error("PDF generation failed", e);
-                      alert("Failed to generate PDF");
-                    }
-                  }
 
                   async function handleRemove() {
                     if (!confirm(`Delete invoice ${inv.number}?`)) return;
                     try {
                       await LocalAdapter.deleteInvoice(inv.org, inv.id);
-                      const fileName = invoicePdfFileName(inv);
-                      try {
-                        await removeFile(inv.org, fileName);
-                      } catch {}
                       setList((l) => l.filter((x) => x.id !== inv.id));
                     } catch (e: any) {
                       alert(e?.message || "Failed to delete");
@@ -1196,18 +991,6 @@ export default function Invoices() {
                           onClick={() => loadForEdit(inv)}
                         >
                           Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => handleSendPdf("whatsapp")}
-                        >
-                          Send on WhatsApp
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => handleSendPdf("email")}
-                        >
-                          Send on Email
                         </Button>
                         <Button variant="destructive" onClick={handleRemove}>
                           Remove
