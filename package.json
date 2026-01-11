@@ -151,7 +151,7 @@
       "signingHashAlgorithms": [
         "sha256"
       ],
-      "icon": "public/logo.svg"
+      "icon": "public/logo.png"
     },
     "nsis": {
       "oneClick": false,

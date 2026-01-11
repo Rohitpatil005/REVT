@@ -20,9 +20,11 @@ async function ensureDir(dir) {
 }
 
 async function createWindow() {
+  const iconPath = path.join(__dirname, "..", "public", "logo.png");
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, "preload.mjs"),
       contextIsolation: true,
