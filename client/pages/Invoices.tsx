@@ -211,11 +211,13 @@ export default function Invoices() {
   }
 
 
-  async function generateAndSavePdfLocally(inv: Invoice): Promise<string | null> {
+  async function generateAndSavePdfLocally(inv: Invoice): Promise<{ saved: boolean; type: 'local' | 'download' }> {
+    console.log("[Invoices] ========== generateAndSavePdfLocally STARTED ==========");
     setPdfTargetInv(inv);
     await new Promise((r) => requestAnimationFrame(() => r(null)));
     const node = pdfRef.current;
     if (!node) throw new Error("PDF container not ready");
+    console.log("[Invoices] PDF container is ready, generating canvas...");
 
     const canvas = await html2canvas(node, {
       scale: 1.5,
@@ -263,19 +265,102 @@ export default function Invoices() {
 
     const blob = pdf.output("blob");
     const safeName = invoicePdfFileName(inv);
-    const file = new File([blob], safeName, { type: "application/pdf" });
 
-    let result: string | null = null;
     try {
-      result = await savePdfToAppFolder(inv.org, file, safeName);
-    } catch (e) {
-      console.error("Local save failed", e);
-      throw e;
+      console.log("[Invoices] Starting base64 conversion...");
+      // Convert blob to base64 for sending to server
+      const base64String = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          // Extract base64 from data URL
+          const base64 = result.split(",")[1];
+          console.log("[Invoices] Base64 conversion complete");
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      // Send to server API to save to Documents/Invoice RE
+      console.log(`[Invoices] ✅ About to send PDF to server for saving: ${safeName}`);
+      console.log(`[Invoices] Base64 size: ${base64String.length} bytes`);
+      console.log(`[Invoices] Org: ${inv.org}`);
+
+      let response;
+      try {
+        console.log("[Invoices] Calling fetch to /api/save-pdf...");
+        response = await fetch("/api/save-pdf", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            org: inv.org,
+            fileName: safeName,
+            pdfData: base64String,
+          }),
+        });
+        console.log(`[Invoices] ✅ Fetch completed, Server response status: ${response.status}`);
+      } catch (fetchError) {
+        console.error("[Invoices] ❌ Fetch failed with error:", fetchError);
+        throw new Error(`Fetch failed: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+      }
+
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          // Clone the response to avoid body stream being read twice
+          const responseClone = response.clone();
+          const errorData = await responseClone.json();
+          console.error(`[Invoices] Server error response:`, errorData);
+          errorMessage = errorData.error || errorData.details || errorMessage;
+        } catch (parseError) {
+          try {
+            const text = await response.text();
+            console.error(`[Invoices] Server error (text):`, text);
+            errorMessage = text || errorMessage;
+          } catch (e2) {
+            console.error(`[Invoices] Could not read error response`);
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      console.log(`[Invoices] ✅ PDF saved successfully:`, result);
+
+      return { saved: true, type: "local" };
+    } catch (error) {
+      console.error("[Invoices] Server PDF save failed, trying Electron fallback:", error);
+
+      // Fallback: Try Electron native save
+      try {
+        const file = new File([blob], safeName, { type: "application/pdf" });
+        const result = await savePdfToAppFolder(inv.org, file, safeName);
+        if (result) {
+          console.log(`[Invoices] ✅ PDF saved via Electron:`, result);
+          return { saved: true, type: "local" };
+        }
+      } catch (e) {
+        console.error("[Invoices] Electron save also failed:", e);
+      }
+
+      // Final fallback: Download via browser if both server and Electron fail
+      console.warn("[Invoices] Falling back to browser download");
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = safeName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      return { saved: true, type: "download" };
     } finally {
       setPdfTargetInv(null);
     }
-
-    return result;
   }
 
   async function saveInvoice(): Promise<Invoice | undefined> {
@@ -314,23 +399,24 @@ export default function Invoices() {
 
     try {
       const result = await generateAndSavePdfLocally(inv);
-      if (result) {
-        toast({
-          title: "Success",
-          description: "Invoice saved locally to Invoice " + (inv.org === "rohit" ? "RE" : "VT"),
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "App is not running in Electron. Cannot save to local folder.",
-          variant: "destructive",
-        });
+      if (result.saved) {
+        if (result.type === 'local') {
+          toast({
+            title: "Success",
+            description: "Invoice saved locally to Invoice " + (inv.org === "rohit" ? "RE" : "VT"),
+          });
+        } else {
+          toast({
+            title: "Success",
+            description: "Invoice PDF downloaded successfully",
+          });
+        }
       }
     } catch (e: any) {
-      console.error("PDF generation/local save failed", e);
+      console.error("PDF generation/save failed", e);
       toast({
         title: "Error",
-        description: "Failed to save PDF locally: " + e.message,
+        description: "Failed to generate PDF: " + e.message,
         variant: "destructive",
       });
     }
@@ -409,6 +495,7 @@ export default function Invoices() {
       poDate: inv?.meta?.poDate ?? "",
       dateOfSupply: inv?.meta?.dateOfSupply ?? inv.date,
       lrNo: inv?.meta?.lrNo ?? "",
+      stamped: inv?.meta?.stamped ?? false,
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }

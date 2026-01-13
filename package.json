@@ -19,7 +19,7 @@
     "build:client": "vite build",
     "build:server": "vite build --config vite.config.server.ts",
     "start": "node dist/server/node-build.mjs",
-    "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
+    "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:5174 && node electron-dev-runner.mjs\"",
     "electron:build": "npm run build && electron-builder -w appx",
     "electron:build:nsis": "npm run build && electron-builder -w nsis",
     "electron:build:all": "npm run build && electron-builder -w appx,nsis",
@@ -151,7 +151,7 @@
       "signingHashAlgorithms": [
         "sha256"
       ],
-      "icon": "public/logo.png"
+      "icon": "public/favicon.ico"
     },
     "nsis": {
       "oneClick": false,

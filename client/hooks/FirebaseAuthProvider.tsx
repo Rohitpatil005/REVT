@@ -27,15 +27,26 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   useEffect(() => {
     let mounted = true
+    let timeoutId: NodeJS.Timeout | null = null
+
+    // Set a timeout to prevent infinite loading if Firebase is slow/unavailable
+    timeoutId = setTimeout(() => {
+      if (mounted) {
+        console.warn('[FirebaseAuthProvider] Firebase initialization timeout (5s) - showing login screen')
+        setLoading(false)
+      }
+    }, 5000)
 
     // Subscribe to auth state changes
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (!mounted) return
+      if (timeoutId) clearTimeout(timeoutId)
       setUser(currentUser)
       setSession(currentUser ? { user: currentUser } : null)
       setLoading(false)
     }, (error) => {
       console.warn('Auth state change error:', error?.message)
+      if (timeoutId) clearTimeout(timeoutId)
       if (mounted) {
         setUser(null)
         setSession(null)
@@ -45,6 +56,7 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     return () => {
       mounted = false
+      if (timeoutId) clearTimeout(timeoutId)
       unsubscribe()
     }
   }, [])

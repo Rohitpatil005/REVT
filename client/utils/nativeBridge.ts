@@ -7,36 +7,73 @@ declare global {
         arrayBuffer: ArrayBuffer,
       ) => Promise<{ fullPath: string }>;
       readFile: (fullPath: string) => Promise<{ base64: string }>;
+      isElectron?: () => boolean;
+      getAppInfo?: () => Promise<any>;
     };
   }
 }
 
-export const isElectron = () =>
-  typeof window !== "undefined" && !!window.electron;
+export const isElectron = () => {
+  try {
+    const hasElectron = typeof window !== "undefined" && !!window.electron;
+    if (typeof window !== "undefined") {
+      const debugInfo = {
+        windowExists: !!window,
+        electronExists: !!window.electron,
+        electronType: typeof window.electron,
+        electronIsElectron: window.electron?.isElectron?.(),
+        hasElectron,
+        url: window.location.href,
+        timestamp: new Date().toISOString(),
+      };
+      console.log("[nativeBridge] Electron bridge check:", debugInfo);
+
+      // Log to window for easier debugging
+      (window as any).__electronDebug = debugInfo;
+    }
+    return hasElectron;
+  } catch (error) {
+    console.error("[nativeBridge] Error checking Electron:", error);
+    return false;
+  }
+};
 
 export async function savePdfToAppFolder(
   org: string,
   file: File,
   fileName: string,
 ): Promise<string | null> {
-  if (!isElectron()) {
-    console.warn("Not running in Electron app - PDF cannot be saved to local folder");
+  const electron = isElectron();
+  console.log("[nativeBridge] savePdfToAppFolder called", {
+    isElectron: electron,
+    org,
+    fileName,
+    fileSize: file.size,
+    fileType: file.type,
+  });
+
+  if (!electron) {
+    console.warn("[nativeBridge] Not running in Electron app - PDF will be downloaded instead");
     return null;
   }
 
   if (!window.electron?.savePdf) {
-    console.error("window.electron.savePdf is not available");
+    const errorMsg = "window.electron.savePdf is not available";
+    console.error("[nativeBridge] " + errorMsg, {
+      hasElectron: !!window.electron,
+      electronKeys: Object.keys(window.electron || {}),
+    });
     throw new Error("Electron bridge not initialized");
   }
 
   try {
     const buf = await file.arrayBuffer();
-    console.log(`Attempting to save PDF: ${fileName} to org: ${org}`);
+    console.log(`[nativeBridge] Attempting to save PDF: ${fileName} to org: ${org} (${buf.byteLength} bytes)`);
     const res = await window.electron.savePdf(org, fileName, buf);
-    console.log(`PDF saved successfully at: ${res.fullPath}`);
+    console.log(`[nativeBridge] PDF saved successfully at: ${res.fullPath}`);
     return res.fullPath;
   } catch (error) {
-    console.error("Failed to save PDF:", error);
+    console.error("[nativeBridge] Failed to save PDF:", error);
     throw error;
   }
 }

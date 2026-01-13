@@ -1,40 +1,69 @@
 import path from "path";
 import { createServer } from "./index";
-import * as express from "express";
+import { fileURLToPath } from "url";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const port = parseInt(process.env.PORT || "3000", 10);
+
+// Create the Express app with API routes
 const app = createServer();
-const port = process.env.PORT || 3000;
 
-// In production, serve the built SPA files
-const __dirname = import.meta.dirname;
-const distPath = path.join(__dirname, "../spa");
+console.log(`[Server] Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`[Server] Port: ${port}`);
+console.log(`[Server] __dirname: ${__dirname}`);
 
-// Serve static files
-app.use(express.static(distPath));
+// The SPA is built at: dist/server/../spa = dist/spa
+const spaDir = path.join(__dirname, "..", "spa");
+console.log(`[Server] SPA directory: ${spaDir}`);
 
-// Handle React Router - serve index.html for all non-API routes
+// Check if spa files exist
+import fs from "fs";
+const indexPath = path.join(spaDir, "index.html");
+console.log(`[Server] Checking for index.html at: ${indexPath}`);
+console.log(`[Server] Index.html exists: ${fs.existsSync(indexPath)}`);
+
+// Serve static files from SPA directory
+app.use("/", (req, res, next) => {
+  // Skip static file serving for API routes
+  if (req.path.startsWith("/api/")) {
+    return next();
+  }
+  // Let express.static handle it
+  next();
+});
+
+// Import express to use static properly
+import express from "express";
+app.use(express.static(spaDir, {
+  maxAge: "1h",
+  etag: false
+}));
+
+// SPA fallback - serve index.html for non-API routes
 app.get("*", (req, res) => {
-  // Don't serve index.html for API routes
-  if (req.path.startsWith("/api/") || req.path.startsWith("/health")) {
+  // Don't serve index.html for API routes (they should 404 above)
+  if (req.path.startsWith("/api/")) {
     return res.status(404).json({ error: "API endpoint not found" });
   }
 
-  res.sendFile(path.join(distPath, "index.html"));
+  console.log(`[Server] Serving index.html for: ${req.path}`);
+  res.sendFile(indexPath);
 });
 
-app.listen(port, () => {
-  console.log(`🚀 Fusion Starter server running on port ${port}`);
-  console.log(`📱 Frontend: http://localhost:${port}`);
-  console.log(`🔧 API: http://localhost:${port}/api`);
+const server = app.listen(port, "127.0.0.1", () => {
+  console.log(`✅ [Server] Running on http://127.0.0.1:${port}`);
+  console.log(`✅ [Server] Frontend: http://127.0.0.1:${port}`);
+  console.log(`✅ [Server] API: http://127.0.0.1:${port}/api`);
 });
 
 // Graceful shutdown
 process.on("SIGTERM", () => {
-  console.log("🛑 Received SIGTERM, shutting down gracefully");
-  process.exit(0);
+  console.log("🛑 [Server] Received SIGTERM, shutting down gracefully");
+  server.close(() => process.exit(0));
 });
 
 process.on("SIGINT", () => {
-  console.log("🛑 Received SIGINT, shutting down gracefully");
-  process.exit(0);
+  console.log("🛑 [Server] Received SIGINT, shutting down gracefully");
+  server.close(() => process.exit(0));
 });

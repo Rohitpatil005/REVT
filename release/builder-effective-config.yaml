@@ -22,7 +22,7 @@ win:
   certificatePassword: <stripped sensitive data>
   signingHashAlgorithms:
     - sha256
-  icon: public/logo.png
+  icon: public/favicon.ico
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
