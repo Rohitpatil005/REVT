@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +11,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { LocalAdapter } from "@/lib/data/local";
 import { Customer, Org } from "@/lib/data/types";
+import { useToast } from "@/hooks/use-toast";
+import * as XLSX from 'xlsx';
 
 function useOrg(): Org {
   const [p] = useSearchParams();
@@ -20,9 +22,12 @@ function useOrg(): Org {
 export default function Customers() {
   const org = useOrg();
   const nav = useNavigate();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [list, setList] = useState<Customer[]>([]);
   const [form, setForm] = useState<Partial<Customer>>({ org, name: "" });
   const [editing, setEditing] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   useEffect(() => {
     LocalAdapter.listCustomers(org).then(setList);
@@ -64,6 +69,93 @@ export default function Customers() {
     }
   }
 
+  function normalizeColumnName(name: string): string {
+    return name?.toLowerCase().trim().replace(/\s+/g, '') || '';
+  }
+
+  function findColumn(row: Record<string, any>, possibleNames: string[]): string | undefined {
+    const normalizedNames = possibleNames.map(normalizeColumnName);
+    const rowKeys = Object.keys(row);
+
+    for (const key of rowKeys) {
+      if (normalizedNames.includes(normalizeColumnName(key))) {
+        return key;
+      }
+    }
+    return undefined;
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(worksheet);
+
+      if (rows.length === 0) {
+        toast({
+          title: "No customers found",
+          description: "The Excel file doesn't contain any valid customers.",
+          variant: "destructive",
+        });
+        setIsImporting(false);
+        return;
+      }
+
+      // Find column names by matching variations
+      const firstRow = rows[0];
+      const nameCol = findColumn(firstRow, ['name', 'customername', 'customer name']);
+      const gstinCol = findColumn(firstRow, ['gstin', 'gst', 'gstno']);
+      const stateCol = findColumn(firstRow, ['state', 'statecode']);
+      const addressCol = findColumn(firstRow, ['address', 'location', 'city']);
+
+      if (!nameCol) {
+        toast({
+          title: "Import failed",
+          description: "Excel must have a 'Name' column",
+          variant: "destructive",
+        });
+        setIsImporting(false);
+        return;
+      }
+
+      let successCount = 0;
+      for (const row of rows) {
+        const customerName = row[nameCol]?.toString().trim();
+        if (!customerName) continue;
+
+        await LocalAdapter.saveCustomer({
+          org,
+          name: customerName,
+          gstin: gstinCol && row[gstinCol] ? String(row[gstinCol]).trim() : undefined,
+          state: stateCol && row[stateCol] ? String(row[stateCol]).trim() : undefined,
+          address: addressCol && row[addressCol] ? String(row[addressCol]).trim() : undefined,
+        });
+        successCount++;
+      }
+
+      setList(await LocalAdapter.listCustomers(org));
+      toast({
+        title: "Import successful",
+        description: `Imported ${successCount} customer(s) successfully.`,
+      });
+    } catch (error) {
+      console.error('Import error:', error);
+      toast({
+        title: "Import failed",
+        description: error instanceof Error ? error.message : "Failed to import customers",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <Card>
@@ -72,6 +164,24 @@ export default function Customers() {
           <CardDescription>Shared memory used by invoices</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={handleImport}
+              className="hidden"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              className="mb-4"
+            >
+              {isImporting ? "Importing..." : "📥 Import from Excel"}
+            </Button>
+          </div>
           <div className="flex gap-2">
             <Button
               variant={org === "rohit" ? "default" : "outline"}

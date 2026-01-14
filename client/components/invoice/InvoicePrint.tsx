@@ -23,7 +23,11 @@ export default function InvoicePrint({ invoice }: { invoice: Invoice }) {
   };
 
   return (
-    <div className="print-a4 p-4 text-[14px] leading-tight text-black" style={{ border: '1px solid #000' }}>
+    <div className="print-a4" style={{
+      padding: '16px',
+      fontSize: '14px',
+      lineHeight: '1.2',
+    }}>
       <div className="text-center font-semibold">TAX INVOICE</div>
       <div className="text-center text-[32px] font-extrabold tracking-wide" style={{ color: '#4F81BD' }}>{profile.name}</div>
       <div className="text-center uppercase text-[12px]">{profile.trade}</div>

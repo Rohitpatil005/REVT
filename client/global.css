@@ -117,7 +117,35 @@
     background: white;
     color: #000;
     border: 1px solid #000;
+    box-sizing: border-box;
+    line-height: 1.2;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+
+  .print-a4 table {
+    border-collapse: collapse;
+    width: 100%;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-a4 td,
+  .print-a4 th {
+    border: 1px solid #000;
+    padding: 4px;
+    font-size: 10px;
+    line-height: 1.1;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-a4 tr {
+    page-break-inside: avoid;
+  }
+
   .print-only { display: none; }
   .screen-only { display: block; }
 

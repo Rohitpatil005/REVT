@@ -6,6 +6,7 @@ productName: Rohit Billing Suite
 files:
   - filter:
       - dist/spa/**
+      - dist/server/**
       - electron/**
       - public/**
 extraMetadata:

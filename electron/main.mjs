@@ -145,70 +145,78 @@ async function createWindow() {
     console.log(`[Renderer ${level}] ${sourceId}:${line} - ${message}`);
   });
 
-  const isDev =
-    process.env.ELECTRON_DEV || process.env.NODE_ENV !== "production";
+  // For development: explicitly set ELECTRON_DEV=true to use dev server
+  // For production/offline: app will load from built files (dist/spa)
+  const useDevServer = process.env.ELECTRON_DEV === "true";
 
-  if (isDev) {
-    console.log("App mode: DEVELOPMENT");
+  if (useDevServer) {
+    // Development mode: load from Vite dev server
+    console.log("[Electron] App mode: DEVELOPMENT (using Vite dev server)");
     const devUrl = process.env.VITE_DEV_SERVER_URL || "http://localhost:5173";
-    console.log("Loading dev URL:", devUrl);
+    console.log("[Electron] Loading dev URL:", devUrl);
     try {
       await win.loadURL(devUrl);
       win.webContents.openDevTools();
     } catch (e) {
-      console.error("Failed to load dev URL:", e);
+      console.error("[Electron] Failed to load dev URL:", e);
+      console.log("[Electron] Falling back to production mode...");
+      loadProductionApp(win);
     }
   } else {
-    // In production, run local Express server and load from localhost
-    console.log("[Electron] App mode: PRODUCTION");
-    try {
-      console.log("[Electron] Starting Express server...");
-      const port = 5173;
-      await startServer(port);
-      console.log("[Electron] Server started successfully");
+    // Production/Offline mode: load from built files via Express server
+    console.log("[Electron] App mode: PRODUCTION (offline ready)");
+    await loadProductionApp(win);
+  }
+}
 
-      const localUrl = `http://127.0.0.1:${port}`;
-      console.log("[Electron] Loading URL:", localUrl);
-      await win.loadURL(localUrl);
+async function loadProductionApp(win) {
+  try {
+    console.log("[Electron] Starting Express server...");
+    const port = 5173;
+    await startServer(port);
+    console.log("[Electron] Server started successfully");
 
-      console.log("[Electron] ✅ App loaded successfully");
+    const localUrl = `http://127.0.0.1:${port}`;
+    console.log("[Electron] Loading URL:", localUrl);
+    await win.loadURL(localUrl);
 
-      // Only open dev tools if explicitly requested
-      if (process.env.ELECTRON_DEBUG) {
-        console.log("[Electron] Opening dev tools (ELECTRON_DEBUG enabled)");
-        win.webContents.openDevTools();
-      }
-    } catch (e) {
-      console.error("[Electron] Failed to start server or load app:", e);
-      // Show error to user
-      const errorHtml = `
-        <html>
-          <head>
-            <style>
-              body { font-family: system-ui; padding: 20px; background: #fee; color: #c00; }
-              h1 { margin-top: 0; }
-              pre { background: #fdd; padding: 10px; overflow: auto; white-space: pre-wrap; }
-            </style>
-          </head>
-          <body>
-            <h1>❌ Failed to start application</h1>
-            <p><strong>Error:</strong> ${e.message}</p>
-            <p><strong>Steps to fix:</strong></p>
-            <ol>
-              <li>Make sure you ran <code>npm run build</code> before packaging</li>
-              <li>Uninstall the current version</li>
-              <li>Run <code>npm run electron:build:nsis</code> to create a new installer</li>
-              <li>Install the new version</li>
-            </ol>
-            <details>
-              <summary>Full error details</summary>
-              <pre>${e.stack}</pre>
-            </details>
-          </body>
-        </html>
-      `;
-      await win.loadURL(`data:text/html,${encodeURIComponent(errorHtml)}`);
+    console.log("[Electron] ✅ App loaded successfully");
+
+    // Only open dev tools if explicitly requested
+    if (process.env.ELECTRON_DEBUG) {
+      console.log("[Electron] Opening dev tools (ELECTRON_DEBUG enabled)");
+      win.webContents.openDevTools();
     }
+  } catch (e) {
+    console.error("[Electron] Failed to start server or load app:", e);
+    // Show error to user
+    const errorHtml = `
+      <html>
+        <head>
+          <style>
+            body { font-family: system-ui; padding: 20px; background: #fee; color: #c00; }
+            h1 { margin-top: 0; }
+            pre { background: #fdd; padding: 10px; overflow: auto; white-space: pre-wrap; }
+          </style>
+        </head>
+        <body>
+          <h1>❌ Failed to start application</h1>
+          <p><strong>Error:</strong> ${e.message}</p>
+          <p><strong>Steps to fix:</strong></p>
+          <ol>
+            <li>Make sure you ran <code>npm run build</code> before packaging</li>
+            <li>Uninstall the current version</li>
+            <li>Run <code>npm run electron:build:nsis</code> to create a new installer</li>
+            <li>Install the new version</li>
+          </ol>
+          <details>
+            <summary>Full error details</summary>
+            <pre>${e.stack}</pre>
+          </details>
+        </body>
+      </html>
+    `;
+    await win.loadURL(`data:text/html,${encodeURIComponent(errorHtml)}`);
   }
 }
 

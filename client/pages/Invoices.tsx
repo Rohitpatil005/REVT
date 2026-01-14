@@ -215,13 +215,22 @@ export default function Invoices() {
     console.log("[Invoices] ========== generateAndSavePdfLocally STARTED ==========");
     setPdfTargetInv(inv);
     await new Promise((r) => requestAnimationFrame(() => r(null)));
+
+    // Wait a bit for rendering to complete
+    await new Promise((r) => setTimeout(r, 100));
+
     const node = pdfRef.current;
     if (!node) throw new Error("PDF container not ready");
     console.log("[Invoices] PDF container is ready, generating canvas...");
 
+    // Professional print quality (3.0 = 300 DPI)
     const canvas = await html2canvas(node, {
-      scale: 1.5,
+      scale: 3,
       backgroundColor: "#ffffff",
+      allowTaint: true,
+      useCORS: true,
+      logging: false,
+      imageTimeout: 0,
     });
 
     const pdf = new jsPDF("p", "pt", "a4");
@@ -255,10 +264,11 @@ export default function Invoices() {
         sliceCanvas.width,
         sliceHeightPx,
       );
-      const imgData = sliceCanvas.toDataURL("image/jpeg", 0.85);
+      // Use PNG for lossless quality - no compression artifacts
+      const imgData = sliceCanvas.toDataURL("image/png");
       if (pageIndex > 0) pdf.addPage();
       const sliceHeightPt = sliceHeightPx / pxPerPt;
-      pdf.addImage(imgData, "JPEG", margin, margin, imgWidth, sliceHeightPt);
+      pdf.addImage(imgData, "PNG", margin, margin, imgWidth, sliceHeightPt);
       offsetPx += sliceHeightPx;
       pageIndex += 1;
     }

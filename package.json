@@ -121,6 +121,7 @@
     "productName": "Rohit Billing Suite",
     "files": [
       "dist/spa/**",
+      "dist/server/**",
       "electron/**",
       "public/**"
     ],
