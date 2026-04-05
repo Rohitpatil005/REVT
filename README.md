@@ -108,12 +108,6 @@ public/                   # Static assets (Logo, Favicons)
 
 ---
 
-## 📖 Related Documentation
-
-- [Setup & Distribution Guide](SETUP_GUIDE.md) - Deep dive into build and release.
-- [Offline Support Guide](OFFLINE_SUPPORT.md) - How the local-first engine works.
-- [PDF Generation Guide](PDF_SAVE_GUIDE.md) - Technical docs for invoice rendering.
-- [Interview Prep Guide](interview_preparation_guide.md) - Essential tips for explaining the code.
 
 ---
 
@@ -126,4 +120,4 @@ public/                   # Static assets (Logo, Favicons)
 ---
 
 > [!TIP]
-> This project follows the **Fusion Starter** architecture. For more details on the core framework, refer to [AGENTS.md](AGENTS.md).
+> This project follows the **Fusion Starter** architecture.
