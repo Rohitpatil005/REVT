@@ -1,0 +1,28 @@
+{
+  "name": "Rohit Billing Suite",
+  "short_name": "REVT",
+  "description": "Unified invoicing for Rohit Enterprises and Vighneshwar Traders",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#a65cff",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "./favicon.ico",
+      "sizes": "192x192",
+      "type": "image/x-icon",
+      "purpose": "any"
+    },
+    {
+      "src": "./favicon.ico",
+      "sizes": "512x512",
+      "type": "image/x-icon",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [],
+  "categories": ["business"],
+  "shortcuts": []
+}

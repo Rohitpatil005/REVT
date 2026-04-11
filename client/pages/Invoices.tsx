@@ -463,14 +463,31 @@ export default function Invoices() {
       return [inv, ...l];
     });
     setEditing(inv);
+    setInvoiceNumber(inv.number);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return inv;
+  }
+
+  function handleNewInvoice() {
+    setEditing(null);
+    setCustomer({ org, name: "", address: "", gstin: "", state: "" });
+    setShipTo({ org, name: "", address: "", gstin: "", state: "" });
+    setShipCode("");
+    setFreight(0);
+    setItems([{
+      id: crypto.randomUUID(),
+      productName: "",
+      packages: 1,
+      quantityPer: 1,
+      qty: 1,
+      rate: 0,
+    }]);
     LocalAdapter.getNumbering(org).then((n) => {
       const yy1 = String(n.year % 100).padStart(2, "0");
       const yy2 = String((n.year + 1) % 100).padStart(2, "0");
       const suggested = `${n.series}/${yy1}-${yy2}/${String(n.next).padStart(n.pad, "0")}`;
       setInvoiceNumber(suggested);
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    return inv;
   }
 
   async function quickAddCustomer() {
@@ -1021,7 +1038,7 @@ export default function Invoices() {
                   {editing ? "Update & Save" : "Save Invoice"}
                 </Button>
                 {editing && (
-                  <Button variant="ghost" onClick={() => { setEditing(null); setCustomer({ org, name: "" }); setInvoiceNumber(""); }}>
+                  <Button variant="ghost" onClick={handleNewInvoice}>
                     New Invoice
                   </Button>
                 )}

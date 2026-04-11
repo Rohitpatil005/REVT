@@ -1,0 +1,29 @@
+<svg viewBox="0 0 200 280" xmlns="http://www.w3.org/2000/svg">
+  <!-- Light blue background -->
+  <rect width="200" height="200" fill="#ADD8E6" rx="20"/>
+  
+  <!-- R letter gradient -->
+  <defs>
+    <linearGradient id="rGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#17A2B8;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#0D7B96;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4B2B6D;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Stylized R letter -->
+  <g fill="url(#rGradient)">
+    <!-- Vertical stroke of R -->
+    <rect x="50" y="30" width="25" height="140" rx="4"/>
+    <!-- Top curved part of R -->
+    <ellipse cx="97.5" cy="60" rx="35" ry="35"/>
+    <!-- Diagonal leg of R -->
+    <polygon points="75,105 110,155 140,155 95,100"/>
+  </g>
+  
+  <!-- White counter-space in R bowl -->
+  <ellipse cx="97.5" cy="60" rx="20" ry="20" fill="white"/>
+  
+  <!-- REVT text below -->
+  <text x="100" y="240" font-size="40" font-weight="bold" text-anchor="middle" fill="#1a1a1a" font-family="Arial, sans-serif">REVT</text>
+</svg>
