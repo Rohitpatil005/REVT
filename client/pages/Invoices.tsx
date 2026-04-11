@@ -462,8 +462,7 @@ export default function Invoices() {
       }
       return [inv, ...l];
     });
-    setEditing(inv);
-    setInvoiceNumber(inv.number);
+    handleNewInvoice();
     window.scrollTo({ top: 0, behavior: "smooth" });
     return inv;
   }
