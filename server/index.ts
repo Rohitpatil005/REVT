@@ -29,18 +29,20 @@ export function createServer() {
   // PDF save endpoint
   app.post("/api/save-pdf", handleSavePdf);
 
-  // Serve static SPA files from dist/spa (for Electron in production)
-  const spaDir = path.join(__dirname, "..", "dist", "spa");
-  app.use(express.static(spaDir));
+  // Serve static SPA files from dist/spa (for Electron in production only)
+  if (process.env.NODE_ENV === "production") {
+    const spaDir = path.join(__dirname, "..", "dist", "spa");
+    app.use(express.static(spaDir));
 
-  // SPA fallback: serve index.html for all non-API routes
-  app.use((req, res, next) => {
-    // Don't serve index.html for API routes
-    if (req.path.startsWith("/api/")) {
-      return res.status(404).json({ error: "Not found" });
-    }
-    res.sendFile(path.join(spaDir, "index.html"));
-  });
+    // SPA fallback: serve index.html for all non-API routes
+    app.use((req, res, next) => {
+      // Don't serve index.html for API routes
+      if (req.path.startsWith("/api/")) {
+        return res.status(404).json({ error: "Not found" });
+      }
+      res.sendFile(path.join(spaDir, "index.html"));
+    });
+  }
 
   return app;
 }

@@ -7,6 +7,11 @@ import {
   onAuthStateChanged,
   type User,
 } from '../../utils/firebase'
+import {
+  cacheAuthUser,
+  getCachedAuthUser,
+  clearAuthCache
+} from '@/lib/offlineStorage'
 
 type AuthContextType = {
   user: User | null
@@ -33,6 +38,13 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     timeoutId = setTimeout(() => {
       if (mounted) {
         console.warn('[FirebaseAuthProvider] Firebase initialization timeout (5s) - showing login screen')
+        // Try to use cached user as fallback
+        const cachedUser = getCachedAuthUser()
+        if (cachedUser) {
+          console.log('[FirebaseAuthProvider] Using cached user due to timeout')
+          setUser(cachedUser)
+          setSession({ user: cachedUser })
+        }
         setLoading(false)
       }
     }, 5000)
@@ -43,13 +55,25 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
       if (timeoutId) clearTimeout(timeoutId)
       setUser(currentUser)
       setSession(currentUser ? { user: currentUser } : null)
+      // Cache the authenticated user
+      if (currentUser) {
+        cacheAuthUser(currentUser)
+      }
       setLoading(false)
     }, (error) => {
       console.warn('Auth state change error:', error?.message)
       if (timeoutId) clearTimeout(timeoutId)
       if (mounted) {
-        setUser(null)
-        setSession(null)
+        // Try to use cached user as fallback
+        const cachedUser = getCachedAuthUser()
+        if (cachedUser) {
+          console.log('[FirebaseAuthProvider] Using cached user due to auth error')
+          setUser(cachedUser)
+          setSession({ user: cachedUser })
+        } else {
+          setUser(null)
+          setSession(null)
+        }
         setLoading(false)
       }
     })
@@ -88,7 +112,10 @@ export const FirebaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }
 
-  const signOut = () => firebaseSignOut(auth)
+  const signOut = async () => {
+    clearAuthCache()
+    return firebaseSignOut(auth)
+  }
 
   return (
     <AuthContext.Provider value={{ user, session, loading, signInWithPassword, signUpWithPassword, signInWithMagicLink, signOut }}>

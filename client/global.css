@@ -135,9 +135,10 @@
   .print-a4 td,
   .print-a4 th {
     border: 1px solid #000;
-    padding: 4px;
+    padding: 6px 4px; /* Slightly more vertical padding */
     font-size: 10px;
-    line-height: 1.1;
+    line-height: normal;
+    vertical-align: middle;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -162,12 +163,16 @@
 @media print {
   @page { size: A4; margin: 12mm; }
 
-  html, body {
+  html, body, #root, main, .min-h-screen, .container, .grid, .flex, .flex-1, .flex-col {
     width: 100% !important;
     height: auto !important;
+    min-height: 0 !important;
     background: white !important;
     margin: 0 !important;
     padding: 0 !important;
+    display: block !important;
+    position: static !important;
+    overflow: visible !important;
   }
 
   /* Hide screen elements */
@@ -181,15 +186,17 @@
     display: block !important;
     width: 100% !important;
     background: white !important;
+    position: static !important;
   }
 
   /* Invoice styling */
   .print-a4 {
     display: block !important;
-    width: 210mm !important;
+    width: 190mm !important; /* Fit within A4 width with margins */
+    margin: 0 auto !important;
     background: white !important;
-    page-break-inside: avoid;
     box-shadow: none !important;
+    border: none !important;
   }
 
   /* Table styles */
@@ -201,5 +208,9 @@
   .inv-tbl th,
   .inv-tbl td {
     border: 1px solid #000 !important;
+  }
+  
+  .inv-tbl tr {
+    page-break-inside: avoid !important;
   }
 }

@@ -175,8 +175,25 @@ export const LocalAdapter: DataAdapter = {
     if (existing.year !== fy) {
       existing.year = fy;
       existing.next = 1;
-      write(key(`${org}:numbering`), existing);
     }
+
+    // Auto-calculate the next number based on existing invoices
+    const allInvoices = read<Invoice[]>(key(`${org}:invoices`), []);
+    const prefix = withFyPrefix({ ...existing, year: fy });
+    let maxNum = 0;
+    for (const inv of allInvoices) {
+      if (inv.number && inv.number.startsWith(prefix)) {
+        const numPart = parseInt(inv.number.slice(prefix.length), 10);
+        if (!isNaN(numPart) && numPart > maxNum) {
+          maxNum = numPart;
+        }
+      }
+    }
+    if (maxNum >= existing.next) {
+      existing.next = maxNum + 1;
+    }
+
+    write(key(`${org}:numbering`), existing);
     return existing;
   },
   async incrementNumber(org) {

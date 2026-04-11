@@ -29,6 +29,7 @@ import { saveInvoiceMetadata } from "../../utils/firestore";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { invoicePdfFileName } from "@/lib/fileName";
+import { savePdfViaIpc } from "@/lib/electronApi";
 import { savePdfToAppFolder } from "@/utils/nativeBridge";
 
 
@@ -117,6 +118,17 @@ export default function Invoices() {
     list.forEach((inv) => {
       if (inv.customer?.address) set.add(inv.customer.address);
       if (inv.shipping?.address) set.add(inv.shipping.address);
+    });
+    return Array.from(set);
+  }, [customers, list]);
+  const shipNameMemory = useMemo(() => {
+    const set = new Set<string>();
+    customers.forEach((c) => {
+      if (c.name) set.add(c.name);
+    });
+    list.forEach((inv) => {
+      if (inv.shipping?.name) set.add(inv.shipping.name);
+      if (inv.customer?.name) set.add(inv.customer.name);
     });
     return Array.from(set);
   }, [customers, list]);
@@ -209,6 +221,49 @@ export default function Invoices() {
     }
     return false;
   }
+  function autofillShipToByName(name: string) {
+    if (!name) return false;
+    for (const inv of list) {
+      if (inv.shipping?.name === name) {
+        let scode = "";
+        let sstate = inv.shipping.state || "";
+        const m = sstate.match(/^(.*?)(?:\s*-\s*(\d{1,2}))?$/);
+        if (m) {
+          sstate = m[1].trim();
+          scode = m[2] || "";
+        }
+        setShipTo({
+          org,
+          name: inv.shipping.name,
+          address: inv.shipping.address,
+          gstin: inv.shipping.gstin,
+          state: sstate,
+        });
+        setShipCode(scode);
+        return true;
+      }
+    }
+    const c = customers.find((x) => x.name === name);
+    if (c) {
+      let scode = "";
+      let sstate = c.state || "";
+      const m = sstate.match(/^(.*?)(?:\s*-\s*(\d{1,2}))?$/);
+      if (m) {
+        sstate = m[1].trim();
+        scode = m[2] || "";
+      }
+      setShipTo({
+        org,
+        name: c.name,
+        address: c.address,
+        gstin: c.gstin,
+        state: sstate,
+      });
+      setShipCode(scode);
+      return true;
+    }
+    return false;
+  }
 
 
   async function generateAndSavePdfLocally(inv: Invoice): Promise<{ saved: boolean; type: 'local' | 'download' }> {
@@ -297,48 +352,15 @@ export default function Invoices() {
       console.log(`[Invoices] Base64 size: ${base64String.length} bytes`);
       console.log(`[Invoices] Org: ${inv.org}`);
 
-      let response;
+      let result;
       try {
-        console.log("[Invoices] Calling fetch to /api/save-pdf...");
-        response = await fetch("/api/save-pdf", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            org: inv.org,
-            fileName: safeName,
-            pdfData: base64String,
-          }),
-        });
-        console.log(`[Invoices] ✅ Fetch completed, Server response status: ${response.status}`);
-      } catch (fetchError) {
-        console.error("[Invoices] ❌ Fetch failed with error:", fetchError);
-        throw new Error(`Fetch failed: ${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+        console.log("[Invoices] Saving PDF via IPC/API...");
+        result = await savePdfViaIpc(inv.org, safeName, base64String);
+        console.log(`[Invoices] ✅ PDF saved successfully:`, result.fullPath);
+      } catch (error) {
+        console.error("[Invoices] ❌ Failed to save PDF:", error);
+        throw error;
       }
-
-      if (!response.ok) {
-        let errorMessage = `HTTP ${response.status}`;
-        try {
-          // Clone the response to avoid body stream being read twice
-          const responseClone = response.clone();
-          const errorData = await responseClone.json();
-          console.error(`[Invoices] Server error response:`, errorData);
-          errorMessage = errorData.error || errorData.details || errorMessage;
-        } catch (parseError) {
-          try {
-            const text = await response.text();
-            console.error(`[Invoices] Server error (text):`, text);
-            errorMessage = text || errorMessage;
-          } catch (e2) {
-            console.error(`[Invoices] Could not read error response`);
-          }
-        }
-        throw new Error(errorMessage);
-      }
-
-      const result = await response.json();
-      console.log(`[Invoices] ✅ PDF saved successfully:`, result);
 
       return { saved: true, type: "local" };
     } catch (error) {
@@ -691,12 +713,24 @@ export default function Invoices() {
               <div className="grid sm:grid-cols-3 gap-2">
                 <Input
                   placeholder="Name"
-                  list="custs"
+                  list="shipNames"
                   value={shipTo.name ?? ""}
-                  onChange={(e) =>
-                    setShipTo({ ...shipTo, name: e.target.value })
-                  }
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (!autofillShipToByName(v))
+                      setShipTo({ ...shipTo, name: v });
+                  }}
+                  onBlur={(e) => {
+                    const v = e.target.value;
+                    if (!autofillShipToByName(v))
+                      setShipTo({ ...shipTo, name: v });
+                  }}
                 />
+                <datalist id="shipNames">
+                  {shipNameMemory.map((n) => (
+                    <option key={n} value={n} />
+                  ))}
+                </datalist>
                 <Input
                   placeholder="GSTIN"
                   value={shipTo.gstin ?? ""}
@@ -808,6 +842,7 @@ export default function Invoices() {
                               onChange={(e) =>
                                 setItem(idx, { packageType: e.target.value })
                               }
+                              list="packageTypes"
                             />
                           </div>
                         </td>
@@ -818,6 +853,7 @@ export default function Invoices() {
                             onChange={(e) =>
                               setItem(idx, { unit: e.target.value })
                             }
+                            list="unitTypes"
                           />
                         </td>
                         <td className="p-3 w-56">
@@ -878,6 +914,23 @@ export default function Invoices() {
                     value={p.name}
                   />
                 ))}
+              </datalist>
+              <datalist id="unitTypes">
+                <option value="Sq. Mtr" />
+                <option value="Sq. Ft." />
+                <option value="Ltr." />
+                <option value="KG." />
+                <option value="RMtr." />
+                <option value="Nos." />
+                <option value="Sheets" />
+              </datalist>
+              <datalist id="packageTypes">
+                <option value="Roll" />
+                <option value="Sheets" />
+                <option value="Drum" />
+                <option value="Box" />
+                <option value="BDL" />
+                <option value="Nos." />
               </datalist>
               <div className="flex justify-between">
                 <Button variant="secondary" onClick={addRow}>

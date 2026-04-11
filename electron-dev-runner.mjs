@@ -3,15 +3,39 @@ import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs';
+import http from 'http';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DEV_SERVER_URL = 'http://localhost:5173';
+const DEV_SERVER_PORT = 5173;
+const isWindows = process.platform === 'win32';
 
-// Set Vite dev server URL for Electron
-process.env.VITE_DEV_SERVER_URL = 'http://localhost:5174';
-process.env.ELECTRON_DEV = '1';
+// Function to check if dev server is ready
+function isServerReady(url) {
+  return new Promise((resolve) => {
+    http.get(url, (res) => {
+      resolve(res.statusCode === 200);
+    }).on('error', () => {
+      resolve(false);
+    });
+  });
+}
+
+// Function to wait for dev server to be ready
+async function waitForServer(maxRetries = 30) {
+  for (let i = 0; i < maxRetries; i++) {
+    if (await isServerReady(DEV_SERVER_URL)) {
+      console.log(`✅ Dev server is ready at ${DEV_SERVER_URL}`);
+      return true;
+    }
+    console.log(`⏳ Waiting for dev server... (${i + 1}/${maxRetries})`);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  console.error('❌ Dev server failed to start');
+  return false;
+}
 
 // Find electron executable
-const isWindows = process.platform === 'win32';
 const electronExePath = path.join(__dirname, 'node_modules', 'electron', 'dist', isWindows ? 'electron.exe' : 'electron');
 
 if (!fs.existsSync(electronExePath)) {
@@ -21,38 +45,65 @@ if (!fs.existsSync(electronExePath)) {
 }
 
 console.log(`✅ Found Electron at: ${electronExePath}`);
-console.log(`✅ Dev server URL: http://localhost:5174`);
+console.log(`🚀 Starting Vite dev server on ${DEV_SERVER_URL}...`);
 
-// Spawn Electron without arguments - it will look for the main entry point in package.json
-// which is set to "electron/main.mjs"
-const electron = spawn(electronExePath, ['.'], {
+// Start Vite dev server first
+// On Windows, we need to use shell: true to run npm commands
+const viteProcess = spawn('npm', ['run', 'dev'], {
   cwd: __dirname,
   stdio: 'inherit',
+  shell: isWindows,
   env: {
     ...process.env,
-    VITE_DEV_SERVER_URL: 'http://localhost:5174',
-    ELECTRON_DEV: '1',
     NODE_ENV: 'development',
   },
 });
 
-electron.on('error', (err) => {
-  console.error('❌ Failed to start Electron:', err.message);
-  process.exit(1);
-});
+// Wait for Vite to be ready, then start Electron
+setTimeout(async () => {
+  const ready = await waitForServer();
 
-electron.on('exit', (code) => {
-  if (code !== 0) {
-    console.error(`❌ Electron exited with code ${code}`);
+  if (ready) {
+    console.log(`\n🔧 Starting Electron with dev server at ${DEV_SERVER_URL}...\n`);
+
+    const electron = spawn(electronExePath, ['.'], {
+      cwd: __dirname,
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        ELECTRON_DEV_SERVER: '1',
+        NODE_ENV: 'development',
+      },
+    });
+
+    electron.on('error', (err) => {
+      console.error('❌ Failed to start Electron:', err.message);
+      viteProcess.kill();
+      process.exit(1);
+    });
+
+    electron.on('exit', (code) => {
+      console.log(`\n✅ Electron closed`);
+      viteProcess.kill();
+      process.exit(code || 0);
+    });
+
+    // Handle termination
+    const handleTerminate = () => {
+      electron.kill();
+      viteProcess.kill();
+    };
+
+    process.on('SIGTERM', handleTerminate);
+    process.on('SIGINT', handleTerminate);
+  } else {
+    viteProcess.kill();
+    process.exit(1);
   }
-  process.exit(code || 0);
-});
+}, 1000);
 
-// Handle termination
-process.on('SIGTERM', () => {
-  electron.kill();
-});
-
-process.on('SIGINT', () => {
-  electron.kill();
+// Handle Vite process errors
+viteProcess.on('error', (err) => {
+  console.error('❌ Failed to start Vite:', err.message);
+  process.exit(1);
 });

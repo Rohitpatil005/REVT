@@ -41,7 +41,7 @@ app.use(express.static(spaDir, {
 }));
 
 // SPA fallback - serve index.html for non-API routes
-app.get("*", (req, res) => {
+app.use((req, res) => {
   // Don't serve index.html for API routes (they should 404 above)
   if (req.path.startsWith("/api/")) {
     return res.status(404).json({ error: "API endpoint not found" });

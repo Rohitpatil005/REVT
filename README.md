@@ -10,6 +10,7 @@ A professional-grade, cross-platform billing and inventory management suite desi
 
 ## ✨ Key Features
 
+- **📦 Inventory Management**: Track products, stock levels, and pricing with ease.
 - **📑 Automated Billing**: Generate professional invoices with automatic fiscal year numbering (e.g., `RE/24-25/001`).
 - **👥 Customer CRM**: Maintain a centralized database of your clients and their purchase history.
 - **📊 Real-time Analytics**: Interactive dashboards and reports to monitor your business growth.
@@ -107,6 +108,12 @@ public/                   # Static assets (Logo, Favicons)
 
 ---
 
+## 📖 Related Documentation
+
+- [Setup & Distribution Guide](SETUP_GUIDE.md) - Deep dive into build and release.
+- [Offline Support Guide](OFFLINE_SUPPORT.md) - How the local-first engine works.
+- [PDF Generation Guide](PDF_SAVE_GUIDE.md) - Technical docs for invoice rendering.
+- [Interview Prep Guide](interview_preparation_guide.md) - Essential tips for explaining the code.
 
 ---
 
@@ -119,4 +126,4 @@ public/                   # Static assets (Logo, Favicons)
 ---
 
 > [!TIP]
-> This project follows the **Fusion Starter** architecture.
+> This project follows the **Fusion Starter** architecture. For more details on the core framework, refer to [AGENTS.md](AGENTS.md).

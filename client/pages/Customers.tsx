@@ -9,8 +9,22 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { LocalAdapter } from "@/lib/data/local";
-import { Customer, Org } from "@/lib/data/types";
+import { Customer, Org, Invoice, INR } from "@/lib/data/types";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
 
@@ -28,6 +42,10 @@ export default function Customers() {
   const [form, setForm] = useState<Partial<Customer>>({ org, name: "" });
   const [editing, setEditing] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [customerInvoices, setCustomerInvoices] = useState<Invoice[]>([]);
+  const [isLoadingInvoices, setIsLoadingInvoices] = useState(false);
 
   useEffect(() => {
     LocalAdapter.listCustomers(org).then(setList);
@@ -66,6 +84,25 @@ export default function Customers() {
       setList((l) => l.filter((x) => x.id !== id));
     } catch (e) {
       alert("Failed to delete");
+    }
+  }
+
+  async function viewBills(c: Customer) {
+    setSelectedCustomer(c);
+    setIsLoadingInvoices(true);
+    try {
+      const allInvoices = await LocalAdapter.listInvoices(org);
+      const custInvoices = allInvoices.filter((inv) => inv.customer.name === c.name);
+      setCustomerInvoices(custInvoices);
+    } catch (error) {
+      console.error("Failed to load bills:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load customer bills.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingInvoices(false);
     }
   }
 
@@ -245,6 +282,9 @@ export default function Customers() {
                   </div>
                 </div>
                 <div className="flex gap-1">
+                  <Button size="sm" variant="secondary" onClick={() => viewBills(c)}>
+                    View Bills
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => startEdit(c)}>
                     Edit
                   </Button>
@@ -267,6 +307,52 @@ export default function Customers() {
           increment automatically.
         </CardContent>
       </Card>
+
+      <Dialog open={!!selectedCustomer} onOpenChange={(open) => !open && setSelectedCustomer(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>{selectedCustomer?.name} - Bills</DialogTitle>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto mt-4">
+            {isLoadingInvoices ? (
+              <div className="text-center py-8 text-muted-foreground">Loading bills...</div>
+            ) : customerInvoices.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">No bills found for this customer.</div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center bg-muted/50 p-4 rounded-lg">
+                  <div className="text-sm font-medium">Total Billed Amount</div>
+                  <div className="text-xl font-bold text-primary">
+                    {INR(customerInvoices.reduce((sum, inv) => sum + inv.totals.total, 0))}
+                  </div>
+                </div>
+                
+                <div className="border rounded-md">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Invoice #</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {customerInvoices.map((inv) => (
+                        <TableRow key={inv.id}>
+                          <TableCell className="font-medium">{inv.number}</TableCell>
+                          <TableCell>{inv.date}</TableCell>
+                          <TableCell className="text-right">{INR(inv.totals.total)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -5,11 +5,10 @@ import fsSync from "fs";
 import os from "os";
 import { fileURLToPath } from "url";
 import { spawn } from "child_process";
+import http from "http";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-let serverProcess = null;
 
 function getOrgFolder(org) {
   const base = path.join(os.homedir(), "Documents");
@@ -22,100 +21,9 @@ async function ensureDir(dir) {
   await fs.mkdir(dir, { recursive: true });
 }
 
-// Start the Express server for Electron production mode
-async function startServer(port = 5173) {
-  return new Promise((resolve, reject) => {
-    const serverPath = path.join(__dirname, "..", "dist", "server", "node-build.mjs");
-
-    console.log("[Electron] Starting server from:", serverPath);
-    console.log("[Electron] Server exists:", fsSync.existsSync(serverPath));
-
-    if (!fsSync.existsSync(serverPath)) {
-      console.error("[Electron] Server file not found. Make sure to run 'npm run build' first.");
-      reject(new Error("Server file not found at " + serverPath));
-      return;
-    }
-
-    serverProcess = spawn("node", [serverPath], {
-      env: {
-        ...process.env,
-        PORT: port.toString(),
-        NODE_ENV: "production",
-        ELECTRON_MODE: "true",
-      },
-      stdio: ["ignore", "pipe", "pipe"], // capture stdout and stderr
-      detached: false,
-    });
-
-    if (!serverProcess) {
-      reject(new Error("Failed to spawn server process"));
-      return;
-    }
-
-    let serverStarted = false;
-
-    // Capture stdout
-    serverProcess.stdout.on("data", (data) => {
-      const message = data.toString();
-      console.log("[Server]", message);
-      // Check if server has started
-      if (message.includes("Running on") || message.includes("listening")) {
-        serverStarted = true;
-      }
-    });
-
-    // Capture stderr
-    serverProcess.stderr.on("data", (data) => {
-      console.error("[Server Error]", data.toString());
-    });
-
-    serverProcess.on("error", (error) => {
-      console.error("[Electron] Server process error:", error);
-      reject(error);
-    });
-
-    serverProcess.on("exit", (code, signal) => {
-      console.warn(`[Electron] Server process exited with code ${code} and signal ${signal}`);
-    });
-
-    // Wait for server to start (check multiple times)
-    let attempts = 0;
-    const checkInterval = setInterval(async () => {
-      attempts++;
-      try {
-        const response = await fetch(`http://127.0.0.1:${port}/api/ping`, { timeout: 1000 });
-        if (response.ok) {
-          console.log(`[Electron] ✅ Server is running and responding`);
-          clearInterval(checkInterval);
-          resolve(serverPath);
-          return;
-        }
-      } catch (e) {
-        // Server not ready yet
-      }
-
-      if (attempts > 20) {
-        // Give up after 10 seconds
-        console.warn(`[Electron] Server didn't respond in time, proceeding anyway`);
-        clearInterval(checkInterval);
-        resolve(serverPath);
-      }
-    }, 500);
-  });
-}
-
-// Stop the server when app closes
-function stopServer() {
-  if (serverProcess) {
-    console.log("Stopping server...");
-    serverProcess.kill();
-    serverProcess = null;
-  }
-}
-
 async function createWindow() {
   const iconPath = path.join(__dirname, "..", "public", "favicon.ico");
-  const preloadPath = path.join(__dirname, "preload.mjs");
+  const preloadPath = path.join(__dirname, "preload.js");
 
   console.log("Preload path:", preloadPath);
   console.log("Preload exists:", fsSync.existsSync(preloadPath));
@@ -128,7 +36,7 @@ async function createWindow() {
       preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      sandbox: false,
     },
   });
 
@@ -145,42 +53,205 @@ async function createWindow() {
     console.log(`[Renderer ${level}] ${sourceId}:${line} - ${message}`);
   });
 
-  // For development: explicitly set ELECTRON_DEV=true to use dev server
-  // For production/offline: app will load from built files (dist/spa)
-  const useDevServer = process.env.ELECTRON_DEV === "true";
+  // Load from dev server if available, otherwise from production files (offline support)
+  if (process.env.ELECTRON_DEV_SERVER === "1") {
+    const devUrl = "http://localhost:5173";
+    console.log("[Electron] Dev mode enabled. Attempting to load from:", devUrl);
 
-  if (useDevServer) {
-    // Development mode: load from Vite dev server
-    console.log("[Electron] App mode: DEVELOPMENT (using Vite dev server)");
-    const devUrl = process.env.VITE_DEV_SERVER_URL || "http://localhost:5173";
-    console.log("[Electron] Loading dev URL:", devUrl);
     try {
-      await win.loadURL(devUrl);
+      // Try to load from dev server with a timeout
+      await Promise.race([
+        win.loadURL(devUrl),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Dev server timeout")), 5000)
+        )
+      ]);
+      console.log("[Electron] ✅ Loaded from dev server (hot reload enabled)");
+      console.log("[Electron] Opening DevTools for debugging...");
       win.webContents.openDevTools();
-    } catch (e) {
-      console.error("[Electron] Failed to load dev URL:", e);
-      console.log("[Electron] Falling back to production mode...");
-      loadProductionApp(win);
+      return; // Success, exit early
+    } catch (devError) {
+      console.warn("[Electron] Dev server not available:", devError.message);
+      console.log("[Electron] Falling back to production files for offline support...");
     }
-  } else {
-    // Production/Offline mode: load from built files via Express server
-    console.log("[Electron] App mode: PRODUCTION (offline ready)");
-    await loadProductionApp(win);
   }
+
+  // Load from production files (offline support - works without dev server)
+  console.log("[Electron] Loading from production files (offline mode)");
+  await loadProductionApp(win);
 }
 
 async function loadProductionApp(win) {
   try {
-    console.log("[Electron] Starting Express server...");
-    const port = 5173;
-    await startServer(port);
-    console.log("[Electron] Server started successfully");
+    console.log("[Electron] App mode: OFFLINE (loading from local HTTP server)");
 
+    // Find the SPA directory
+    let spaDir = null;
+    const appPath = app.getAppPath();
+    const resourcesPath = process.resourcesPath;
+
+    const possibleDirs = [
+      path.join(resourcesPath, "dist", "spa"),
+      path.join(appPath, "dist", "spa"),
+      path.join(__dirname, "..", "dist", "spa"),
+      path.join(__dirname, "..", "..", "dist", "spa"),
+    ];
+
+    for (const dir of possibleDirs) {
+      if (fsSync.existsSync(path.join(dir, "index.html"))) {
+        spaDir = dir;
+        console.log("[Electron] ✓ Found SPA directory at:", spaDir);
+        break;
+      }
+    }
+
+    if (!spaDir) {
+      throw new Error(
+        "Built SPA files not found. Please ensure dist/spa/index.html exists.\n" +
+        "Checked paths:\n" + possibleDirs.join("\n")
+      );
+    }
+
+    // Start a local HTTP server to serve the SPA
+    // This enables service workers and provides better offline support
+    const staticServe = (filePath, res) => {
+      const fullPath = path.join(spaDir, filePath);
+
+      // Prevent directory traversal
+      if (!fullPath.startsWith(spaDir)) {
+        res.writeHead(403);
+        res.end("Forbidden");
+        return;
+      }
+
+      try {
+        const stat = fsSync.statSync(fullPath);
+
+        if (stat.isDirectory()) {
+          // Serve index.html for directories
+          const indexPath = path.join(fullPath, "index.html");
+          if (fsSync.existsSync(indexPath)) {
+            const content = fsSync.readFileSync(indexPath, "utf-8");
+            res.writeHead(200, { "Content-Type": "text/html" });
+            res.end(content);
+          } else {
+            res.writeHead(404);
+            res.end("Not Found");
+          }
+        } else {
+          // Serve the file
+          const content = fsSync.readFileSync(fullPath);
+          const ext = path.extname(fullPath);
+          const mimeTypes = {
+            ".html": "text/html",
+            ".js": "application/javascript",
+            ".css": "text/css",
+            ".json": "application/json",
+            ".svg": "image/svg+xml",
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".ico": "image/x-icon",
+          };
+          const contentType = mimeTypes[ext] || "application/octet-stream";
+
+          res.writeHead(200, { "Content-Type": contentType });
+          res.end(content);
+        }
+      } catch (err) {
+        res.writeHead(404);
+        res.end("Not Found");
+      }
+    };
+
+    const server = http.createServer((req, res) => {
+      // Enable CORS
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+      if (req.method === "OPTIONS") {
+        res.writeHead(200);
+        res.end();
+        return;
+      }
+
+      // Handle API routes
+      if (req.url.startsWith("/api/")) {
+        if (req.url === "/api/save-pdf" && req.method === "POST") {
+          let body = "";
+          req.on("data", (chunk) => {
+            body += chunk.toString();
+          });
+          req.on("end", async () => {
+            try {
+              const { org, fileName, pdfData } = JSON.parse(body);
+              if (!org || !fileName || !pdfData) {
+                res.writeHead(400, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ error: "Missing required fields" }));
+                return;
+              }
+
+              const folder = getOrgFolder(org);
+              await ensureDir(folder);
+              const fullPath = path.join(folder, fileName);
+              const buffer = Buffer.from(pdfData, "base64");
+              await fs.writeFile(fullPath, buffer);
+
+              res.writeHead(200, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({
+                success: true,
+                message: "PDF saved successfully",
+                path: fullPath,
+                fileName,
+                org,
+              }));
+            } catch (error) {
+              console.error("[offline-api] Error saving PDF:", error);
+              res.writeHead(500, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({
+                error: "Failed to save PDF",
+                details: error instanceof Error ? error.message : String(error),
+              }));
+            }
+          });
+          return;
+        }
+
+        // Other API routes not found
+        res.writeHead(404, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "API route not found" }));
+        return;
+      }
+
+      // Serve static files
+      const filePath = req.url === "/" ? "/index.html" : req.url;
+      staticServe(filePath, res);
+    });
+
+    // Find available port starting from 3000
+    let port = 3000;
+    const server_listen = () => {
+      return new Promise((resolve, reject) => {
+        server.listen(port, "127.0.0.1", () => {
+          resolve(port);
+        }).on("error", (err) => {
+          if (err.code === "EADDRINUSE") {
+            port++;
+            server_listen().then(resolve).catch(reject);
+          } else {
+            reject(err);
+          }
+        });
+      });
+    };
+
+    port = await server_listen();
     const localUrl = `http://127.0.0.1:${port}`;
-    console.log("[Electron] Loading URL:", localUrl);
-    await win.loadURL(localUrl);
+    console.log("[Electron] ✅ Local HTTP server started at:", localUrl);
 
-    console.log("[Electron] ✅ App loaded successfully");
+    // Load the app from local server (service workers will work properly)
+    await win.loadURL(localUrl);
+    console.log("[Electron] ✅ App loaded successfully with service worker support");
 
     // Only open dev tools if explicitly requested
     if (process.env.ELECTRON_DEBUG) {
@@ -188,15 +259,14 @@ async function loadProductionApp(win) {
       win.webContents.openDevTools();
     }
   } catch (e) {
-    console.error("[Electron] Failed to start server or load app:", e);
-    // Show error to user
+    console.error("[Electron] Failed to load app:", e);
     const errorHtml = `
       <html>
         <head>
           <style>
             body { font-family: system-ui; padding: 20px; background: #fee; color: #c00; }
             h1 { margin-top: 0; }
-            pre { background: #fdd; padding: 10px; overflow: auto; white-space: pre-wrap; }
+            pre { background: #fdd; padding: 10px; overflow: auto; white-space: pre-wrap; font-size: 11px; }
           </style>
         </head>
         <body>
@@ -204,10 +274,9 @@ async function loadProductionApp(win) {
           <p><strong>Error:</strong> ${e.message}</p>
           <p><strong>Steps to fix:</strong></p>
           <ol>
-            <li>Make sure you ran <code>npm run build</code> before packaging</li>
-            <li>Uninstall the current version</li>
-            <li>Run <code>npm run electron:build:nsis</code> to create a new installer</li>
-            <li>Install the new version</li>
+            <li>Run <code>npm run build</code> to create the SPA files</li>
+            <li>Run <code>npm run electron:build:nsis</code> to create installer</li>
+            <li>Restart the app</li>
           </ol>
           <details>
             <summary>Full error details</summary>
@@ -217,6 +286,17 @@ async function loadProductionApp(win) {
       </html>
     `;
     await win.loadURL(`data:text/html,${encodeURIComponent(errorHtml)}`);
+  }
+}
+
+function tryListDir(dirPath) {
+  try {
+    if (fsSync.existsSync(dirPath)) {
+      return fsSync.readdirSync(dirPath).slice(0, 10).join(", ");
+    }
+    return "Directory does not exist";
+  } catch (err) {
+    return "Error reading directory: " + err.message;
   }
 }
 
@@ -243,11 +323,5 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
-  stopServer();
   if (process.platform !== "darwin") app.quit();
-});
-
-// Clean up server on app quit
-app.on("quit", () => {
-  stopServer();
 });

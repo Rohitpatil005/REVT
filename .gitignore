@@ -27,3 +27,4 @@ dist-ssr
 !.env
 release/win-unpacked/Rohit Billing Suite.exe
 release/Rohit Billing Suite Setup 0.1.0.exe
+*.zip

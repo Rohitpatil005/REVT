@@ -3,6 +3,7 @@ directories:
   buildResources: public
 appId: com.rohit.billing
 productName: Rohit Billing Suite
+asar: false
 files:
   - filter:
       - dist/spa/**
@@ -16,23 +17,14 @@ win:
     - target: nsis
       arch:
         - x64
-    - target: appx
-      arch:
-        - x64
-  certificateFile: null
-  certificatePassword: <stripped sensitive data>
-  signingHashAlgorithms:
-    - sha256
-  icon: public/favicon.ico
+  icon: favicon.ico
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  installerIcon: favicon.ico
+  uninstallerIcon: favicon.ico
+  installerHeaderIcon: favicon.ico
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Rohit Billing Suite
-appx:
-  displayName: Rohit Billing Suite
-  identityName: com.rohit.billing
-  backgroundColor: '#ffffff'
-  publisher: CN=Rohit
 electronVersion: 31.7.7

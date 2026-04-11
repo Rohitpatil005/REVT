@@ -18,11 +18,11 @@ export const Orgs: Record<Org, {
     contact: "MOBILE - 9890352222",
     email: "rohitent2006@rediffmail.com",
     addressLine:
-      "FLAT NO. A - 5 , DARPAN CO - OP HOUSING SOCIETY , OFF NEW D. P. ROAD JAGTAP DAIRY , VISHAL NAGAR , PIMPLE NILAKH , PUNE - 411027",
+      "S. No. 150/B , Shed No. 2 , Jivan Nagar , Tathawade , Pune - 411033",
     bank: {
-      bank: "HDFC Bank",
-      account: "50200017516152",
-      ifsc: "HDFC0003982",
+      bank: "ICICI Bank",
+      account: "385005003994",
+      ifsc: "ICIC0003850",
       branch: "Pimple Nilakh , Pune - 411027",
     },
   },

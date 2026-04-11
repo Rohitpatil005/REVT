@@ -11,6 +11,7 @@ import {
 } from "./hooks/FirebaseAuthProvider";
 import {
   BrowserRouter,
+  HashRouter,
   Routes,
   Route,
   Navigate,
@@ -27,6 +28,7 @@ import Customers from "./pages/Customers";
 import Reports from "./pages/Reports";
 import Products from "./pages/Products";
 import StorageTest from "./pages/StorageTest";
+import { useOnlineStatus } from "./hooks/useOnlineStatus";
 
 // Log Electron info and environment
 (() => {
@@ -47,6 +49,34 @@ import StorageTest from "./pages/StorageTest";
     console.error("[App] Error logging environment:", e);
   }
 })();
+
+// Register service worker for offline support
+if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    const isElectron = !!(window as any).electron;
+    const isFile = window.location.protocol === 'file:';
+
+    console.log("[App] Service Worker registration starting...", {
+      isElectron,
+      isFile,
+      protocol: window.location.protocol,
+      href: window.location.href,
+    });
+
+    // Try registering service worker
+    const swPath = isFile ? "/sw.js" : "./sw.js";
+
+    navigator.serviceWorker
+      .register(swPath, { scope: "/" })
+      .then((registration) => {
+        console.log("[App] Service Worker registered successfully:", registration);
+      })
+      .catch((error) => {
+        console.error("[App] Service Worker registration failed:", error);
+        console.log("[App] This is normal in some Electron configurations");
+      });
+  });
+}
 
 const queryClient = new QueryClient();
 
@@ -112,76 +142,97 @@ function RequireAuth({ children }: { children: JSX.Element }) {
   return children;
 }
 
-const App = () => (
-  <ErrorBoundary>
-    <QueryClientProvider client={queryClient}>
-      <FirebaseAuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <MainLayout>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route
-                  path="/dashboard"
-                  element={
-                    <RequireAuth>
-                      <Dashboard />
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/invoices"
-                  element={
-                    <RequireAuth>
-                      <Invoices />
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/customers"
-                  element={
-                    <RequireAuth>
-                      <Customers />
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/products"
-                  element={
-                    <RequireAuth>
-                      <Products />
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/storage-test"
-                  element={
-                    <RequireAuth>
-                      <StorageTest />
-                    </RequireAuth>
-                  }
-                />
-                <Route
-                  path="/reports"
-                  element={
-                    <RequireAuth>
-                      <Reports />
-                    </RequireAuth>
-                  }
-                />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </MainLayout>
-          </BrowserRouter>
-        </TooltipProvider>
-      </FirebaseAuthProvider>
-    </QueryClientProvider>
-  </ErrorBoundary>
-);
+function OfflineIndicator() {
+  const isOnline = useOnlineStatus();
+
+  if (isOnline) {
+    return null;
+  }
+
+  return (
+    <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-yellow-900 px-4 py-2 text-sm font-medium text-center z-50">
+      📡 You are offline. Using cached data.
+    </div>
+  );
+}
+
+const App = () => {
+  // Use HashRouter for Electron (file:// URLs), BrowserRouter for web
+  const isElectron = typeof window !== "undefined" && !!(window as any).electron;
+  const Router = isElectron ? HashRouter : BrowserRouter;
+
+  return (
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <FirebaseAuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <OfflineIndicator />
+            <Router>
+              <MainLayout>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/auth" element={<Auth />} />
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <RequireAuth>
+                        <Dashboard />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/invoices"
+                    element={
+                      <RequireAuth>
+                        <Invoices />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/customers"
+                    element={
+                      <RequireAuth>
+                        <Customers />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/products"
+                    element={
+                      <RequireAuth>
+                        <Products />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/storage-test"
+                    element={
+                      <RequireAuth>
+                        <StorageTest />
+                      </RequireAuth>
+                    }
+                  />
+                  <Route
+                    path="/reports"
+                    element={
+                      <RequireAuth>
+                        <Reports />
+                      </RequireAuth>
+                    }
+                  />
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </MainLayout>
+            </Router>
+          </TooltipProvider>
+        </FirebaseAuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
+  );
+};
 
 try {
   console.log("[App] Mounting React app...");

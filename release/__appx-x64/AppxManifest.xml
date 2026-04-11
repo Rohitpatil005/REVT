@@ -6,9 +6,9 @@
    xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
    xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">
   <!-- use single quotes to avoid double quotes escaping in the publisher value  -->
-  <Identity Name="com.rohit.billing"
+  <Identity Name="fusion-starter"
     ProcessorArchitecture="x64"
-    Publisher='CN=Rohit'
+    Publisher='CN=ms'
     Version="0.1.0.0" />
   <Properties>
     <DisplayName>Rohit Billing Suite</DisplayName>
@@ -26,9 +26,9 @@
     <rescap:Capability Name="runFullTrust"/>
   </Capabilities>
   <Applications>
-    <Application Id="com.rohit.billing" Executable="app\Rohit Billing Suite.exe" EntryPoint="Windows.FullTrustApplication">
+    <Application Id="fusion-starter" Executable="app\Rohit Billing Suite.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-       BackgroundColor="#ffffff"
+       BackgroundColor="#464646"
        DisplayName="Rohit Billing Suite"
        Square150x150Logo="assets\Square150x150Logo.png"
        Square44x44Logo="assets\Square44x44Logo.png"
