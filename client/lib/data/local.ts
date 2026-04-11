@@ -149,13 +149,13 @@ export const LocalAdapter: DataAdapter = {
       i.totals ?? computeTotals(i.items, i.taxType, i.taxRate, i.freight ?? 0);
     const id = i.id ?? crypto.randomUUID();
     const inv: Invoice = {
+      ...i,
       id,
       number: num!,
       totals,
       createdAt: now(),
       freight: i.freight ?? 0,
       meta: i.meta,
-      ...i,
     } as Invoice;
 
     const idx = all.findIndex((x) => x.id === id);

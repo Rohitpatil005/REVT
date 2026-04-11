@@ -395,7 +395,7 @@ export default function Invoices() {
     }
   }
 
-  async function saveInvoice(): Promise<Invoice | undefined> {
+  async function saveInvoice(saveAsNew: boolean = false): Promise<Invoice | undefined> {
     if (!customer?.name || items.length === 0) return undefined;
     const shipStateCombined = shipCode
       ? `${shipTo.state ?? ""} - ${shipCode}`
@@ -411,7 +411,7 @@ export default function Invoices() {
         : undefined;
     const inv = await LocalAdapter.saveInvoice({
       org,
-      id: editing?.id,
+      id: saveAsNew ? undefined : editing?.id,
       number: invoiceNumber?.trim() ? invoiceNumber.trim() : undefined,
       date,
       customer: {
@@ -1033,12 +1033,23 @@ export default function Invoices() {
                     />
                   </label>
                 </div>
-                <Button onClick={() => saveInvoice()}>
-                  {editing ? "Update & Save" : "Save Invoice"}
-                </Button>
+                {editing ? (
+                  <div className="flex gap-2">
+                    <Button className="flex-1" onClick={() => saveInvoice(false)}>
+                      Update Current
+                    </Button>
+                    <Button className="flex-1" variant="secondary" onClick={() => saveInvoice(true)}>
+                      Save as New
+                    </Button>
+                  </div>
+                ) : (
+                  <Button onClick={() => saveInvoice(false)}>
+                    Save Invoice
+                  </Button>
+                )}
                 {editing && (
                   <Button variant="ghost" onClick={handleNewInvoice}>
-                    New Invoice
+                    Clear Form (New)
                   </Button>
                 )}
                 <Button
