@@ -278,9 +278,9 @@ export default function Invoices() {
     if (!node) throw new Error("PDF container not ready");
     console.log("[Invoices] PDF container is ready, generating canvas...");
 
-    // Professional print quality (3.0 = 300 DPI)
+    // Good print quality (2.0 = 200 DPI) — sharp for text, much smaller file size
     const canvas = await html2canvas(node, {
-      scale: 3,
+      scale: 2,
       backgroundColor: "#ffffff",
       allowTaint: true,
       useCORS: true,
@@ -319,11 +319,11 @@ export default function Invoices() {
         sliceCanvas.width,
         sliceHeightPx,
       );
-      // Use PNG for lossless quality - no compression artifacts
-      const imgData = sliceCanvas.toDataURL("image/png");
+      // Use JPEG for much smaller file size — excellent for text-heavy invoices
+      const imgData = sliceCanvas.toDataURL("image/jpeg", 0.92);
       if (pageIndex > 0) pdf.addPage();
       const sliceHeightPt = sliceHeightPx / pxPerPt;
-      pdf.addImage(imgData, "PNG", margin, margin, imgWidth, sliceHeightPt);
+      pdf.addImage(imgData, "JPEG", margin, margin, imgWidth, sliceHeightPt);
       offsetPx += sliceHeightPx;
       pageIndex += 1;
     }
