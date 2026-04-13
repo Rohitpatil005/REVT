@@ -836,7 +836,7 @@ export default function Invoices() {
                             }
                           />
                         </td>
-                        <td className="p-3 w-40">
+                        <td className="p-3 w-28">
                           <div className="grid gap-1">
                             <Input
                               className="h-12 text-base"
@@ -853,7 +853,7 @@ export default function Invoices() {
                             />
                             <Input
                               className="h-10 text-sm"
-                              placeholder="Type (e.g., Roll)"
+                              placeholder="Type"
                               value={it.packageType ?? ""}
                               onChange={(e) =>
                                 setItem(idx, { packageType: e.target.value })
@@ -862,7 +862,7 @@ export default function Invoices() {
                             />
                           </div>
                         </td>
-                        <td className="p-3 w-56">
+                        <td className="p-3 w-32">
                           <Input
                             className="h-12 text-base"
                             value={it.unit ?? ""}
@@ -872,7 +872,7 @@ export default function Invoices() {
                             list="unitTypes"
                           />
                         </td>
-                        <td className="p-3 w-56">
+                        <td className="p-3 w-32">
                           <Input
                             className="h-12 text-base"
                             type="number"
@@ -887,15 +887,15 @@ export default function Invoices() {
                             }}
                           />
                         </td>
-                        <td className="p-3 w-56">
+                        <td className="p-3 w-32">
                           <Input
                             className="h-12 text-base"
-                            type="number"
-                            value={it.qty}
+                            type="text"
+                            value={Number(it.qty).toFixed(2).replace(/\.?0+$/, "")}
                             disabled
                           />
                         </td>
-                        <td className="p-3 w-56">
+                        <td className="p-3 w-40">
                           <Input
                             className="h-12 text-base"
                             type="number"

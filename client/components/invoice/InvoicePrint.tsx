@@ -101,11 +101,11 @@ export default function InvoicePrint({ invoice }: { invoice: Invoice }) {
             <tr>
               <th className={`${csb} w-9 text-center`}>Sr.<br/>No.</th>
               <th className={`${csb} text-left`}>Product Name</th>
-              <th className={`${csb} text-center w-24`}>HSN Code</th>
-              <th className={`${csb} text-center w-20`}>No. of<br/>Pkgs</th>
-              <th className={`${csb} text-center w-20`}>Qty<br/>Per</th>
+              <th className={`${csb} text-center w-20`}>HSN Code</th>
+              <th className={`${csb} text-center w-14`}>No. of<br/>Pkgs</th>
+              <th className={`${csb} text-center w-14`}>Qty<br/>Per</th>
               <th className={`${csb} text-center w-20`}>Total<br/>Qty</th>
-              <th className={`${csb} text-center w-24`}>Rate</th>
+              <th className={`${csb} text-center w-22`}>Rate</th>
               <th className={`${cs} text-right w-28`}>Taxable<br/>Value</th>
             </tr>
           </thead>
@@ -124,7 +124,7 @@ export default function InvoicePrint({ invoice }: { invoice: Invoice }) {
                   {it.unit && <div className="text-gray-700" style={{ fontSize: '11px' }}>{it.unit}</div>}
                 </td>
                 <td className={`${csb} text-center align-middle`}>
-                  <div className="font-medium">{it.qty}</div>
+                  <div className="font-medium">{Number(it.qty).toFixed(2).replace(/\.?0+$/, "")}</div>
                   {it.unit && <div className="text-gray-700" style={{ fontSize: '11px' }}>{it.unit}</div>}
                 </td>
                 <td className={`${csb} text-center align-middle`}>
@@ -138,12 +138,12 @@ export default function InvoicePrint({ invoice }: { invoice: Invoice }) {
             <tr className="align-top h-full">
                 <td className={`${csb} text-center`}></td>
                 <td className={csb}></td>
-                <td className={`${csb} text-center`}></td>
-                <td className={`${csb} text-center align-middle`}></td>
-                <td className={`${csb} text-center align-middle`}></td>
-                <td className={`${csb} text-center align-middle`}></td>
-                <td className={`${csb} text-center align-middle`}></td>
-                <td className={`${cs} text-right`}></td>
+                <td className={`${csb} text-center w-20`}></td>
+                <td className={`${csb} text-center w-14 align-middle`}></td>
+                <td className={`${csb} text-center w-14 align-middle`}></td>
+                <td className={`${csb} text-center w-20 align-middle`}></td>
+                <td className={`${csb} text-center w-22 align-middle`}></td>
+                <td className={`${cs} text-right w-28`}></td>
             </tr>
           </tbody>
         </table>
