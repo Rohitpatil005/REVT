@@ -10,7 +10,6 @@ A professional-grade, cross-platform billing and inventory management suite desi
 
 ## ✨ Key Features
 
-- **📦 Inventory Management**: Track products, stock levels, and pricing with ease.
 - **📑 Automated Billing**: Generate professional invoices with automatic fiscal year numbering (e.g., `RE/24-25/001`).
 - **👥 Customer CRM**: Maintain a centralized database of your clients and their purchase history.
 - **📊 Real-time Analytics**: Interactive dashboards and reports to monitor your business growth.
